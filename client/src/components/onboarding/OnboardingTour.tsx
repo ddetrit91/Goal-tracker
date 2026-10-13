@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { createPortal } from 'react-dom';
-import { ArrowRight, ArrowLeft, X, CheckCircle2 } from 'lucide-react'; // <-- Убран HelpCircle
+import { ArrowRight, ArrowLeft, X, CheckCircle2 } from 'lucide-react';
 import { cn } from '@/utils/cn';
 
 interface Step {
@@ -79,7 +79,6 @@ export function OnboardingTour() {
     if (!isVisible) return;
     const updatePosition = () => {
       const step = TOUR_STEPS[currentStepIndex];
-      // ИСПРАВЛЕНИЕ: Безопасная проверка на undefined
       if (!step) return; 
       
       const targetEl = document.querySelector(step.targetSelector);
@@ -196,10 +195,13 @@ export function OnboardingTour() {
               )}
             </mask>
           </defs>
+          {/* <-- АДАПТАЦИЯ: Более глубокое затемнение в темной теме через opacity transition --> */}
           <rect 
             width="100%" 
             height="100%" 
-            fill="rgba(15, 23, 42, 0.7)" 
+            fill="#0f172a" 
+            opacity="0.7"
+            className="transition-opacity duration-300 dark:opacity-80"
             mask="url(#spotlight-mask)" 
           />
         </svg>
@@ -224,12 +226,16 @@ export function OnboardingTour() {
       {/* Тултип */}
       <div 
         className={cn(
-          "fixed z-[9999] bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden",
-          "w-[400px] max-w-[calc(100vw-32px)] animate-in fade-in slide-in-from-bottom-4 duration-300"
+          "fixed z-[9999] rounded-2xl shadow-2xl border overflow-hidden",
+          "w-[400px] max-w-[calc(100vw-32px)] animate-in fade-in slide-in-from-bottom-4 duration-300",
+          // Светлая тема
+          "bg-white border-slate-200",
+          // Темная тема <-- ДОБАВЛЕНО
+          "dark:bg-slate-800 dark:border-slate-700"
         )}
         style={{ top: tooltipRect.top, left: tooltipRect.left }}
       >
-        {/* Шапка тултипа */}
+        {/* Шапка тултипа (градиент остается одинаковым для обеих тем) */}
         <div className="bg-gradient-to-r from-indigo-600 to-violet-600 px-5 py-4 text-white">
           <div className="flex items-center justify-between">
             <h3 className="text-lg font-bold">{currentStep.title}</h3>
@@ -256,38 +262,42 @@ export function OnboardingTour() {
           <div className="flex gap-3">
             <span className="text-lg shrink-0">📍</span>
             <div>
-              <p className="text-xs font-bold text-indigo-600 uppercase tracking-wider mb-0.5">Где находится</p>
-              <p className="text-sm text-slate-700">{currentStep.location}</p>
+              {/* <-- ДОБАВЛЕНО: dark:text-indigo-400 для меток секций --> */}
+              <p className="text-xs font-bold text-indigo-600 uppercase tracking-wider mb-0.5 dark:text-indigo-400">Где находится</p>
+              {/* <-- ДОБАВЛЕНО: dark:text-slate-200 для основного текста --> */}
+              <p className="text-sm text-slate-700 dark:text-slate-200">{currentStep.location}</p>
             </div>
           </div>
 
-          <div className="border-t border-slate-100 pt-3 flex gap-3">
+          {/* <-- ДОБАВЛЕНО: dark:border-slate-700 для разделителей --> */}
+          <div className="border-t border-slate-100 pt-3 flex gap-3 dark:border-slate-700">
             <span className="text-lg shrink-0">⚙️</span>
             <div>
-              <p className="text-xs font-bold text-indigo-600 uppercase tracking-wider mb-0.5">Как работает</p>
-              <p className="text-sm text-slate-700">{currentStep.howItWorks}</p>
+              <p className="text-xs font-bold text-indigo-600 uppercase tracking-wider mb-0.5 dark:text-indigo-400">Как работает</p>
+              <p className="text-sm text-slate-700 dark:text-slate-200">{currentStep.howItWorks}</p>
             </div>
           </div>
 
-          <div className="border-t border-slate-100 pt-3 flex gap-3">
+          <div className="border-t border-slate-100 pt-3 flex gap-3 dark:border-slate-700">
             <span className="text-lg shrink-0">💎</span>
             <div>
-              <p className="text-xs font-bold text-indigo-600 uppercase tracking-wider mb-0.5">Зачем нужно & польза</p>
-              <p className="text-sm text-slate-700">{currentStep.benefit}</p>
+              <p className="text-xs font-bold text-indigo-600 uppercase tracking-wider mb-0.5 dark:text-indigo-400">Зачем нужно & польза</p>
+              <p className="text-sm text-slate-700 dark:text-slate-200">{currentStep.benefit}</p>
             </div>
           </div>
         </div>
 
         {/* Навигация */}
-        <div className="px-5 py-4 bg-slate-50 border-t border-slate-200 flex items-center justify-between">
+        {/* <-- ДОБАВЛЕНО: dark:bg-slate-900/50 и dark:border-slate-700 для футера --> */}
+        <div className="px-5 py-4 bg-slate-50 border-t border-slate-200 flex items-center justify-between dark:bg-slate-900/50 dark:border-slate-700">
           <button 
             onClick={handlePrev}
             disabled={isFirst}
             className={cn(
               "flex items-center gap-1.5 text-sm font-medium px-3 py-2 rounded-lg transition-colors",
               isFirst 
-                ? "text-slate-300 cursor-not-allowed" 
-                : "text-slate-600 hover:text-slate-900 hover:bg-slate-200"
+                ? "text-slate-300 cursor-not-allowed dark:text-slate-600" 
+                : "text-slate-600 hover:text-slate-900 hover:bg-slate-200 dark:text-slate-400 dark:hover:text-white dark:hover:bg-slate-700"
             )}
           >
             <ArrowLeft className="h-4 w-4" /> Назад
@@ -296,7 +306,7 @@ export function OnboardingTour() {
           <div className="flex gap-2">
             <button 
               onClick={handleSkip}
-              className="text-xs font-medium text-slate-500 hover:text-slate-700 px-3 py-2 rounded-lg hover:bg-slate-200 transition-colors"
+              className="text-xs font-medium text-slate-500 hover:text-slate-700 px-3 py-2 rounded-lg hover:bg-slate-200 transition-colors dark:text-slate-400 dark:hover:text-white dark:hover:bg-slate-700"
             >
               Пропустить
             </button>

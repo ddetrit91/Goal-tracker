@@ -21,7 +21,6 @@ export function TaskItem({ task, onToggleFocus }: TaskItemProps) {
   const handleCheck = async () => {
     await toggleComplete(task.id);
     if (!task.isCompleted) {
-      // Запускаем конфетти при выполнении задачи
       confetti({
         particleCount: 100,
         spread: 70,
@@ -32,16 +31,19 @@ export function TaskItem({ task, onToggleFocus }: TaskItemProps) {
   };
 
   const priorityColors = {
-    low: 'bg-slate-100 text-slate-500',
-    medium: 'bg-blue-100 text-blue-700',
-    high: 'bg-orange-100 text-orange-700',
+    low: 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400',
+    medium: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
+    high: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300',
   };
 
   return (
     <div
       className={cn(
         'group flex items-start gap-3 rounded-lg border border-slate-200 bg-white p-4 transition-all hover:shadow-md',
-        task.isCompleted && 'opacity-60 bg-slate-50'
+        task.isCompleted && 'opacity-60 bg-slate-50',
+        // <-- ДОБАВЛЕНО: Темная тема для карточки
+        'dark:bg-slate-800 dark:border-slate-700 dark:hover:shadow-none',
+        task.isCompleted && 'dark:bg-slate-800/50 dark:opacity-50'
       )}
     >
       <button
@@ -50,7 +52,9 @@ export function TaskItem({ task, onToggleFocus }: TaskItemProps) {
           'mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded border transition-colors',
           task.isCompleted
             ? 'border-emerald-500 bg-emerald-500 text-white'
-            : 'border-slate-300 hover:border-indigo-500'
+            : 'border-slate-300 hover:border-indigo-500',
+          // <-- ДОБАВЛЕНО: Темная тема для чекбокса
+          !task.isCompleted && 'dark:border-slate-600 dark:hover:border-indigo-400'
         )}
       >
         {task.isCompleted && <Check className="h-3.5 w-3.5" />}
@@ -61,7 +65,9 @@ export function TaskItem({ task, onToggleFocus }: TaskItemProps) {
           <span
             className={cn(
               'text-sm font-medium transition-all',
-              task.isCompleted ? 'text-slate-500 line-through' : 'text-slate-900'
+              task.isCompleted ? 'text-slate-500 line-through' : 'text-slate-900',
+              // <-- ДОБАВЛЕНО: Темная тема для текста
+              task.isCompleted ? 'dark:text-slate-500' : 'dark:text-slate-100'
             )}
           >
             {task.title}
@@ -72,7 +78,7 @@ export function TaskItem({ task, onToggleFocus }: TaskItemProps) {
         </div>
 
         {parentGoal && (
-          <div className="flex items-center gap-1.5 text-xs text-slate-500 mb-2">
+          <div className="flex items-center gap-1.5 text-xs text-slate-500 mb-2 dark:text-slate-400">
             <Target className="h-3 w-3" />
             <span className="truncate">{parentGoal.title}</span>
           </div>
@@ -87,7 +93,11 @@ export function TaskItem({ task, onToggleFocus }: TaskItemProps) {
                 'ml-auto p-1.5 rounded-full transition-colors',
                 task.isDailyFocus
                   ? 'text-amber-500 bg-amber-50 hover:bg-amber-100'
-                  : 'text-slate-400 hover:text-amber-500 hover:bg-slate-100'
+                  : 'text-slate-400 hover:text-amber-500 hover:bg-slate-100',
+                // <-- ДОБАВЛЕНО: Темная тема для звезды фокуса
+                task.isDailyFocus 
+                  ? 'dark:bg-amber-900/20 dark:hover:bg-amber-900/40' 
+                  : 'dark:text-slate-500 dark:hover:text-amber-400 dark:hover:bg-slate-700'
               )}
               title="Сделать главным фокусом дня"
             >
@@ -96,7 +106,7 @@ export function TaskItem({ task, onToggleFocus }: TaskItemProps) {
           )}
           <button
             onClick={() => deleteTask(task.id)}
-            className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors opacity-0 group-hover:opacity-100"
+            className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors opacity-0 group-hover:opacity-100 dark:hover:text-red-400 dark:hover:bg-red-900/20"
           >
             <Trash2 className="h-4 w-4" />
           </button>

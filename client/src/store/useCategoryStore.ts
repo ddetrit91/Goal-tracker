@@ -1,7 +1,16 @@
+// client/src/store/useCategoryStore.ts
 import { create } from 'zustand';
-import { getStorageAdapter } from '@/services/storage/repository.factory';
 import type { Category, CreateCategoryInput, UpdateCategoryInput } from '@/types/category';
 import { SYSTEM_CATEGORY_MAP } from '@/types/category';
+
+const getUserId = () => {
+  const userStr = localStorage.getItem('user');
+  if (!userStr) return null;
+  try { return JSON.parse(userStr).id || null; } 
+  catch { return null; }
+};
+
+const API_BASE = 'http://localhost:3000/api';
 
 interface CategoryState {
   categories: Category[];
@@ -14,30 +23,59 @@ interface CategoryState {
   deleteCategory: (id: string) => Promise<void>;
 }
 
-const adapter = getStorageAdapter();
+// Безопасная инициализация списка всех категорий (включая legacy "custom")
+const getInitialCategories = () => {
+  const systemCats = Object.entries(SYSTEM_CATEGORY_MAP).map(([key, value]) => ({
+    id: key,
+    name: value.label,
+    colorHex: value.color,
+    iconName: value.icon,
+    isSystem: true,
+    createdAt: '',
+    updatedAt: '',
+  }));
+
+  // Добавляем заглушку для старых целей с категорией "custom", чтобы селект не ломался
+  const hasCustomLegacy = !systemCats.some(c => c.id === 'custom');
+  if (hasCustomLegacy) {
+    systemCats.push({
+      id: 'custom',
+      name: 'Пользовательская',
+      colorHex: '#64748b',
+      iconName: 'Tag',
+      isSystem: true,
+      createdAt: '',
+      updatedAt: '',
+    });
+  }
+
+  return systemCats;
+};
 
 export const useCategoryStore = create<CategoryState>((set, get) => ({
   categories: [],
   isLoading: false,
   error: null,
-  allCategories: [],
+  allCategories: getInitialCategories(), // <-- Инициализируем сразу безопасным списком
 
   fetchCategories: async () => {
+    const userId = getUserId();
+    const systemCategories = getInitialCategories();
+
+    if (!userId) {
+      set({ categories: [], allCategories: systemCategories, isLoading: false });
+      return;
+    }
+
     set({ isLoading: true, error: null });
     try {
-      const customCategories = await adapter.categories.getAll();
+      const res = await fetch(`${API_BASE}/categories`, {
+        headers: { 'X-User-Id': userId }
+      });
       
-      // Объединяем системные и кастомные категории
-      const systemCategories = Object.entries(SYSTEM_CATEGORY_MAP).map(([key, value]) => ({
-        id: key,
-        name: value.label,
-        colorHex: value.color,
-        iconName: value.icon,
-        isSystem: true,
-        createdAt: '',
-        updatedAt: '',
-      }));
-
+      if (!res.ok) throw new Error('Failed to fetch categories');
+      
+      const customCategories = await res.json();
       const all = [...systemCategories, ...customCategories];
       
       set({ 
@@ -46,24 +84,70 @@ export const useCategoryStore = create<CategoryState>((set, get) => ({
         isLoading: false 
       });
     } catch (err) {
-      set({ error: err instanceof Error ? err.message : 'Failed to fetch categories', isLoading: false });
+      console.error('Category fetch error:', err);
+      // При ошибке оставляем хотя бы системные + legacy категории
+      set({ 
+        error: err instanceof Error ? err.message : 'Ошибка загрузки категорий', 
+        allCategories: systemCategories,
+        isLoading: false 
+      });
     }
   },
 
   createCategory: async (data) => {
-    const newCategory = await adapter.categories.create(data);
+    const userId = getUserId();
+    if (!userId) throw new Error('User not authenticated');
+
+    const res = await fetch(`${API_BASE}/categories`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-User-Id': userId },
+      body: JSON.stringify(data),
+    });
+
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.error || 'Ошибка создания категории');
+    }
+
+    const newCategory = await res.json();
     await get().fetchCategories();
     return newCategory;
   },
 
   updateCategory: async (id, data) => {
-    const updated = await adapter.categories.update(id, data);
+    const userId = getUserId();
+    if (!userId) throw new Error('User not authenticated');
+
+    const res = await fetch(`${API_BASE}/categories/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'X-User-Id': userId },
+      body: JSON.stringify(data),
+    });
+
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.error || 'Ошибка обновления категории');
+    }
+
+    const updated = await res.json();
     await get().fetchCategories();
     return updated;
   },
 
   deleteCategory: async (id) => {
-    await adapter.categories.delete(id);
+    const userId = getUserId();
+    if (!userId) throw new Error('User not authenticated');
+
+    const res = await fetch(`${API_BASE}/categories/${id}`, {
+      method: 'DELETE',
+      headers: { 'X-User-Id': userId }
+    });
+
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.error || 'Ошибка удаления категории');
+    }
+
     await get().fetchCategories();
   },
 }));

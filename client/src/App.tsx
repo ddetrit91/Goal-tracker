@@ -1,31 +1,49 @@
+// client/src/App.tsx
 import * as React from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, Outlet, useLocation } from 'react-router-dom'; // <-- ДОБАВЛЕН useLocation
 import { Navbar } from '@/components/layout/Navbar';
 import { TodayPage } from '@/pages/TodayPage';
 import { GoalsPage } from '@/pages/GoalsPage';
 import { VisionBoardPage } from '@/pages/VisionBoardPage';
 import { AnalyticsPage } from '@/pages/AnalyticsPage';
 import { SettingsPage } from '@/pages/SettingsPage';
+import { LoginPage } from '@/pages/LoginPage';
+import { RegisterPage } from '@/pages/RegisterPage';
+import { AdminPage } from '@/pages/AdminPage';
 import { OnboardingTour } from '@/components/onboarding/OnboardingTour';
-import { Toast } from '@/components/common/Toast'; // <-- ДОБАВЛЕН ИМПОРТ
+import { Toast } from '@/components/common/Toast';
 import { useGoalStore } from '@/store/useGoalStore';
 import { useTaskStore } from '@/store/useTaskStore';
 import { useCategoryStore } from '@/store/useCategoryStore';
 
+// Компонент-защитник маршрутов
+function ProtectedRoute() {
+  const user = localStorage.getItem('user');
+  if (!user) return <Navigate to="/login" replace />;
+  return <Outlet />;
+}
+
 function AppContent() {
+  const location = useLocation(); // <-- ПОЛУЧАЕМ ТЕКУЩИЙ ПУТЬ
+  
+  // Проверяем, находимся ли мы на странице авторизации или регистрации
+  const isAuthPage = ['/login', '/register'].includes(location.pathname);
+
   const fetchGoals = useGoalStore((state) => state.fetchGoals);
   const fetchTasks = useTaskStore((state) => state.fetchTasks);
   const fetchCategories = useCategoryStore((state) => state.fetchCategories);
   
-  // Состояние для глобального тоста
   const [toastMessage, setToastMessage] = React.useState<string | null>(null);
 
   React.useEffect(() => {
-    fetchGoals();
-    fetchTasks();
-    fetchCategories();
+    const user = localStorage.getItem('user');
+    // Загружаем данные только если пользователь авторизован И мы НЕ на странице входа
+    if (user && !isAuthPage) {
+      fetchGoals();
+      fetchTasks();
+      fetchCategories();
+    }
 
-    // Слушаем кастомное событие для показа тоста из любого места
     const handleShowToast = (e: Event) => {
       const customEvent = e as CustomEvent;
       setToastMessage(customEvent.detail?.message || 'Успешно!');
@@ -33,24 +51,34 @@ function AppContent() {
 
     window.addEventListener('show-toast', handleShowToast);
     return () => window.removeEventListener('show-toast', handleShowToast);
-  }, [fetchGoals, fetchTasks, fetchCategories]);
+  }, [fetchGoals, fetchTasks, fetchCategories, isAuthPage]);
 
   return (
-<div className="min-h-screen bg-slate-50 dark:bg-slate-950 md:pl-72 relative transition-colors duration-300">
-      <OnboardingTour />
-      <Navbar />
-      <main className="pt-6">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 relative transition-colors duration-300">
+      {/* УСЛОВНЫЙ РЕНДЕРИНГ: Показываем Navbar только если это НЕ страница авторизации */}
+      {!isAuthPage && <Navbar />}
+      
+      {/* УСЛОВНЫЙ ОТСТУП: Добавляем md:pl-72 только если есть Navbar */}
+      <main className={!isAuthPage ? "md:pl-72 pt-6" : ""}>
+        <OnboardingTour />
         <Routes>
-          <Route path="/" element={<Navigate to="/today" replace />} />
-          <Route path="/today" element={<TodayPage />} />
-          <Route path="/goals" element={<GoalsPage />} />
-          <Route path="/vision-board" element={<VisionBoardPage />} />
-          <Route path="/analytics" element={<AnalyticsPage />} />
-          <Route path="/settings" element={<SettingsPage />} />
+          {/* Публичные маршруты */}
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
+          
+          {/* Защищенные маршруты */}
+          <Route element={<ProtectedRoute />}>
+            <Route path="/" element={<Navigate to="/today" replace />} />
+            <Route path="/today" element={<TodayPage />} />
+            <Route path="/goals" element={<GoalsPage />} />
+            <Route path="/vision-board" element={<VisionBoardPage />} />
+            <Route path="/analytics" element={<AnalyticsPage />} />
+            <Route path="/settings" element={<SettingsPage />} />
+            <Route path="/admin" element={<AdminPage />} />
+          </Route>
         </Routes>
       </main>
 
-      {/* Глобальный тост */}
       <Toast 
         message={toastMessage || ''} 
         isVisible={!!toastMessage} 

@@ -1,3 +1,4 @@
+// client/src/components/common/Modal.tsx
 import * as React from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
@@ -16,12 +17,10 @@ export function Modal({ isOpen, onClose, title, children, className }: ModalProp
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
     };
-
     if (isOpen) {
       document.addEventListener('keydown', handleEscape);
       document.body.style.overflow = 'hidden';
     }
-
     return () => {
       document.removeEventListener('keydown', handleEscape);
       document.body.style.overflow = 'unset';
@@ -32,23 +31,27 @@ export function Modal({ isOpen, onClose, title, children, className }: ModalProp
 
   return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
       <div
         className={cn(
+          // Светлая тема
           'relative w-full max-w-lg rounded-xl bg-white shadow-2xl ring-1 ring-slate-200 animate-in fade-in zoom-in-95 duration-200',
+          // Темная тема <-- ДОБАВЛЕНО
+          'dark:bg-slate-800 dark:ring-slate-700 dark:shadow-black/50',
           className
         )}
       >
         {title && (
-          <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
-            <h2 className="text-lg font-semibold text-slate-900">{title}</h2>
+          <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4 dark:border-slate-700">
+            {/* <-- ДОБАВЛЕНО: dark:text-white для заголовка --> */}
+            <h2 className="text-lg font-semibold text-slate-900 dark:text-white">{title}</h2>
             <button
               onClick={onClose}
-              className="rounded-full p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
+              className="rounded-full p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors dark:hover:bg-slate-700 dark:hover:text-slate-300"
             >
               <X className="h-5 w-5" />
             </button>

@@ -11,7 +11,7 @@ interface DreamCardProps {
 
 export function DreamCard({ goal, onStartPlanning }: DreamCardProps) {
   return (
-    <div className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 p-6 text-white shadow-lg transition-all hover:shadow-xl hover:-translate-y-1">
+    <div className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 p-6 text-white shadow-lg transition-all hover:shadow-xl hover:-translate-y-1 dark:from-indigo-700 dark:to-purple-900 dark:shadow-purple-900/30">
       {/* Декоративный элемент */}
       <div className="absolute -right-4 -top-4 h-24 w-24 rounded-full bg-white/10 blur-2xl transition-all group-hover:bg-white/20" />
       
@@ -26,7 +26,7 @@ export function DreamCard({ goal, onStartPlanning }: DreamCardProps) {
 
           <h3 className="text-xl font-bold mb-2 leading-tight">{goal.title}</h3>
           {goal.description && (
-            <p className="text-sm text-indigo-100 line-clamp-3 mb-4">
+            <p className="text-sm text-indigo-100 line-clamp-3 mb-4 dark:text-indigo-200">
               {goal.description}
             </p>
           )}
@@ -36,7 +36,7 @@ export function DreamCard({ goal, onStartPlanning }: DreamCardProps) {
           <Button
             variant="secondary"
             size="sm"
-            className="w-full gap-2 bg-white/10 text-white hover:bg-white/20 border-0"
+            className="w-full gap-2 bg-white/10 text-white hover:bg-white/20 border-0 dark:hover:bg-white/25"
             onClick={() => onStartPlanning(goal)}
           >
             Начать планирование

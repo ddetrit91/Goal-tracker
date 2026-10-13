@@ -1,3 +1,4 @@
+// client/src/pages/GoalsPage.tsx
 import * as React from 'react';
 import { useGoalStore } from '@/store/useGoalStore';
 import { GoalCard } from '@/components/goals/GoalCard';
@@ -15,7 +16,7 @@ const HORIZON_TABS: { value: GoalHorizon | 'all'; label: string }[] = [
 ];
 
 export function GoalsPage() {
-  const { goals, fetchGoals, getByHorizon } = useGoalStore();
+  const { goals, fetchGoals, getByHorizon, deleteGoal } = useGoalStore(); // <-- УБРАНО updateGoal
   const [activeTab, setActiveTab] = React.useState<GoalHorizon | 'all'>('all');
   const [isModalOpen, setIsModalOpen] = React.useState(false);
   const [selectedParentId, setSelectedParentId] = React.useState<string | null>(null);
@@ -33,8 +34,8 @@ export function GoalsPage() {
     <div className="max-w-4xl mx-auto p-6 pb-24 md:pb-6">
       <header className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Цели</h1>
-          <p className="text-slate-500 mt-1">Декомпозиция больших целей на маленькие шаги</p>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Цели</h1>
+          <p className="text-slate-500 mt-1 dark:text-slate-400">Декомпозиция больших целей на маленькие шаги</p>
         </div>
         <Button 
           onClick={() => { 
@@ -58,26 +59,28 @@ export function GoalsPage() {
               activeTab === tab.value
                 ? 'bg-indigo-600 text-white shadow-sm'
                 : 'bg-white text-slate-600 hover:bg-slate-50 border border-slate-200'
-            }`}
+            }
+            dark:border-slate-700 
+            ${activeTab !== tab.value ? 'dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700' : ''}
+            `}
           >
             {tab.label}
           </button>
         ))}
       </div>
 
-      {/* Блок ближайших дедлайнов */}
       <div data-tour="deadlines">
         <UpcomingDeadlines />
       </div>
 
       <div className="space-y-6">
         {filteredGoals.length === 0 ? (
-          <div className="text-center py-12 bg-white rounded-xl border border-dashed border-slate-200">
-            <Filter className="h-8 w-8 text-slate-300 mx-auto mb-3" />
-            <p className="text-slate-500">В этой категории пока нет целей.</p>
+          <div className="text-center py-12 bg-white rounded-xl border border-dashed border-slate-200 dark:bg-slate-800 dark:border-slate-700">
+            <Filter className="h-8 w-8 text-slate-300 mx-auto mb-3 dark:text-slate-600" />
+            <p className="text-slate-500 dark:text-slate-400">В этой категории пока нет целей.</p>
             <Button 
               variant="ghost" 
-              className="mt-2 text-indigo-600"
+              className="mt-2 text-indigo-600 dark:text-indigo-400 dark:hover:bg-slate-700"
               onClick={() => { setSelectedParentId(null); setEditingGoal(null); setIsModalOpen(true); }}
             >
               Создать первую цель
@@ -98,7 +101,7 @@ export function GoalsPage() {
                   setIsModalOpen(true);
                 }}
                 onDeleteGoal={async (id) => {
-                  await useGoalStore.getState().deleteGoal(id);
+                  await deleteGoal(id); // <-- ИСПОЛЬЗУЕМ deleteGoal из стора
                   window.dispatchEvent(new CustomEvent('show-toast', { 
                     detail: { message: 'Цель успешно удалена!' } 
                   }));

@@ -1,7 +1,15 @@
+// client/src/store/useTaskStore.ts
 import { create } from 'zustand';
-import { getStorageAdapter } from '@/services/storage/repository.factory';
 import { useGoalStore } from './useGoalStore';
 import type { Task, CreateTaskInput, UpdateTaskInput } from '@/types/task';
+
+const getUserId = () => {
+  const userStr = localStorage.getItem('user');
+  if (!userStr) return null;
+  try { return JSON.parse(userStr).id || null; } 
+  catch { return null; }
+};
+const API_BASE = 'http://localhost:3000/api';
 
 interface TaskState {
   tasks: Task[];
@@ -17,46 +25,114 @@ interface TaskState {
   getDailyFocusByDate: (date: string) => Task[];
 }
 
-const adapter = getStorageAdapter();
-
 export const useTaskStore = create<TaskState>((set, get) => ({
   tasks: [],
   isLoading: false,
   error: null,
 
   fetchTasks: async () => {
+    const userId = getUserId();
+    if (!userId) {
+      set({ tasks: [], isLoading: false });
+      return;
+    }
+
     set({ isLoading: true, error: null });
     try {
-      const tasks = await adapter.tasks.getAll();
+      const res = await fetch(`${API_BASE}/tasks`, {
+        headers: { 'X-User-Id': userId }
+      });
+      
+      if (!res.ok) throw new Error('Failed to fetch tasks');
+      
+      const tasks = await res.json();
       set({ tasks, isLoading: false });
     } catch (err) {
-      set({ error: err instanceof Error ? err.message : 'Failed to fetch tasks', isLoading: false });
+      set({ 
+        error: err instanceof Error ? err.message : 'Ошибка загрузки задач', 
+        isLoading: false 
+      });
     }
   },
 
   createTask: async (data) => {
-    const newTask = await adapter.tasks.create(data);
-    await get().fetchTasks();
-    // Если задача привязана к цели, обновляем её прогресс
+    const userId = getUserId();
+    if (!userId) throw new Error('User not authenticated');
+
+    const res = await fetch(`${API_BASE}/tasks`, {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json',
+        'X-User-Id': userId 
+      },
+      body: JSON.stringify(data),
+    });
+
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.error || 'Ошибка создания задачи');
+    }
+
+    const newTask = await res.json();
+    set((state) => ({ tasks: [...state.tasks, newTask] }));
+
     if (newTask.goalId) {
       await useGoalStore.getState().recalculateProgress(newTask.goalId);
     }
+    
     return newTask;
   },
 
   updateTask: async (id, data) => {
-    const updated = await adapter.tasks.update(id, data);
-    await get().fetchTasks();
+    const userId = getUserId();
+    if (!userId) throw new Error('User not authenticated');
+
+    const res = await fetch(`${API_BASE}/tasks/${id}`, {
+      method: 'PUT',
+      headers: { 
+        'Content-Type': 'application/json',
+        'X-User-Id': userId 
+      },
+      body: JSON.stringify(data),
+    });
+
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.error || 'Ошибка обновления задачи');
+    }
+
+    const updated = await res.json();
+    set((state) => ({
+      tasks: state.tasks.map((t) => t.id === id ? { ...t, ...updated } : t)
+    }));
+    
     if (updated.goalId) {
       await useGoalStore.getState().recalculateProgress(updated.goalId);
     }
+    
     return updated;
   },
 
   deleteTask: async (id) => {
+    const userId = getUserId();
+    if (!userId) throw new Error('User not authenticated');
+
     const task = get().tasks.find((t) => t.id === id);
-    await adapter.tasks.delete(id);
-    await get().fetchTasks();
+
+    const res = await fetch(`${API_BASE}/tasks/${id}`, {
+      method: 'DELETE',
+      headers: { 'X-User-Id': userId }
+    });
+
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.error || 'Ошибка удаления задачи');
+    }
+
+    set((state) => ({
+      tasks: state.tasks.filter((t) => t.id !== id)
+    }));
+
     if (task?.goalId) {
       await useGoalStore.getState().recalculateProgress(task.goalId);
     }
@@ -71,11 +147,14 @@ export const useTaskStore = create<TaskState>((set, get) => ({
       completedAt: !task.isCompleted ? new Date().toISOString() : null,
     };
 
-    await adapter.tasks.update(id, updatedData);
-    await get().fetchTasks();
+    // Используем уже обновленный updateTask с API
+    await get().updateTask(id, updatedData);
     
+    // Обновляем прогресс цели на фронтенде после успешного ответа сервера
     if (task.goalId) {
-      await useGoalStore.getState().recalculateProgress(task.goalId);
+      setTimeout(() => {
+        useGoalStore.getState().recalculateProgress(task.goalId!);
+      }, 100);
     }
   },
 
@@ -83,7 +162,6 @@ export const useTaskStore = create<TaskState>((set, get) => ({
     const task = get().tasks.find((t) => t.id === id);
     if (!task) return;
 
-    // Проверка лимита Rule of 3
     const currentFocusCount = get().tasks.filter(
       (t) => t.isDailyFocus && t.dueDate === task.dueDate && !t.isCompleted
     ).length;
@@ -93,8 +171,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
       return;
     }
 
-    await adapter.tasks.update(id, { isDailyFocus: !task.isDailyFocus });
-    await get().fetchTasks();
+    await get().updateTask(id, { isDailyFocus: !task.isDailyFocus });
   },
 
   getByDate: (date) => {

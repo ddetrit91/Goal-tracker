@@ -1,43 +1,30 @@
+// client/src/types/goal.ts
+
 export const GOAL_HORIZONS = [
-  'life',
-  'annual',
-  'semi-annual',
-  'quarterly',
-  'monthly',
-  'weekly',
-  'daily',
+  'life', 'annual', 'semi-annual', 'quarterly', 'monthly', 'weekly', 'daily',
 ] as const;
 
 export type GoalHorizon = (typeof GOAL_HORIZONS)[number];
 
 export const GOAL_STATUSES = [
-  'backlog',
-  'in_progress',
-  'completed',
-  'paused',
-  'archived',
+  'backlog', 'in_progress', 'completed', 'paused', 'archived',
 ] as const;
 
 export type GoalStatus = (typeof GOAL_STATUSES)[number];
 
 export const GOAL_PRIORITIES = ['low', 'medium', 'high', 'critical'] as const;
-
 export type GoalPriority = (typeof GOAL_PRIORITIES)[number];
 
 export const GOAL_CATEGORIES = [
-  'self-development',
-  'dream',
-  'altruism',
-  'wishlist',
-  'health',
-  'career',
-  'relationships',
+  'self-development', 'dream', 'altruism', 'wishlist',
+  'health', 'career', 'relationships',
 ] as const;
 
 export type GoalCategory = (typeof GOAL_CATEGORIES)[number] | string;
 
 export interface Goal {
   id: string;
+  userId?: string; // <-- ДОБАВЛЕНО: для совместимости с API
   parentId: string | null;
   title: string;
   description: string;
@@ -52,8 +39,12 @@ export interface Goal {
   isProgressCalculated: boolean;
   estimatedCost: number | null;
   currency: string | null;
+  
+  // НОВОЕ ПОЛЕ: Цель дня
+  isTodayGoal?: boolean; 
+  
   createdAt: string;
-  updatedAt: string;
+  updatedAt?: string; // <-- Сделал опциональным, так как не всегда приходит с бэкенда
 }
 
 export type CreateGoalInput = Omit<Goal, 'id' | 'createdAt' | 'updatedAt'>;
