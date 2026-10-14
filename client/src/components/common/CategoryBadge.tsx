@@ -1,4 +1,3 @@
-import * as React from 'react';
 import { cn } from '@/utils/cn';
 import { SYSTEM_CATEGORY_MAP } from '@/types/category';
 import * as LucideIcons from 'lucide-react';

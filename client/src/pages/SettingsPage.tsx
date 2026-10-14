@@ -1,8 +1,17 @@
 import * as React from 'react';
-import { getStorageAdapter } from '@/services/storage/repository.factory';
 import { Button } from '@/components/common/Button';
 import { Download, Upload, RefreshCw, AlertTriangle } from 'lucide-react';
 import type { IBackupData } from '@/services/storage/storage.interface';
+
+const API_BASE = 'http://localhost:3000/api';
+
+const getUserId = () => {
+  try {
+    return JSON.parse(localStorage.getItem('user') || '{}').id;
+  } catch {
+    return null;
+  }
+};
 
 export function SettingsPage() {
   const [isImporting, setIsImporting] = React.useState(false);
@@ -10,9 +19,18 @@ export function SettingsPage() {
 
   const handleExport = async () => {
     try {
-      const adapter = getStorageAdapter();
-      const data = await adapter.exportAll();
+      const userId = getUserId();
+      if (!userId) {
+        alert('Пожалуйста, войдите в систему для экспорта данных');
+        return;
+      }
+
+      const res = await fetch(`${API_BASE}/backup`, {
+        headers: { 'X-User-Id': userId }
+      });
+      if (!res.ok) throw new Error('Ошибка получения бэкапа');
       
+      const data = await res.json();
       const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -41,29 +59,61 @@ export function SettingsPage() {
       const text = await file.text();
       const data = JSON.parse(text) as IBackupData;
       
-      // Простая валидация структуры
-      if (!data.goals || !data.tasks || !data.categories) {
+      // Валидация структуры
+      if (!data.goals || !data.tasks) {
         throw new Error('Неверный формат файла');
       }
 
-      if (window.confirm('Это действие заменит все текущие данные. Продолжить?')) {
-        const adapter = getStorageAdapter();
-        await adapter.importAll(data);
-        window.location.reload(); // Перезагрузка для применения новых данных
+      if (window.confirm('Это действие заменит все текущие цели и задачи в базе данных. Продолжить?')) {
+        const userId = getUserId();
+        if (!userId) {
+          alert('Пожалуйста, войдите в систему');
+          return;
+        }
+
+        const res = await fetch(`${API_BASE}/backup`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-User-Id': userId,
+          },
+          body: JSON.stringify(data),
+        });
+
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.error || 'Ошибка восстановления бэкапа');
+        }
+
+        alert('Данные успешно импортированы!');
+        window.location.reload();
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Import failed', err);
-      alert('Ошибка при импорте: неверный формат файла');
+      alert(err.message || 'Ошибка при импорте: неверный формат файла');
     } finally {
       setIsImporting(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
 
-  const handleClearData = () => {
-    if (window.confirm('Вы уверены? Все данные будут удалены безвозвратно.')) {
-      localStorage.clear();
-      window.location.reload();
+  const handleClearData = async () => {
+    if (window.confirm('Вы уверены? Все ваши цели и задачи в базе данных будут удалены безвозвратно.')) {
+      try {
+        const userId = getUserId();
+        if (userId) {
+          await fetch(`${API_BASE}/user/data`, {
+            method: 'DELETE',
+            headers: { 'X-User-Id': userId },
+          });
+        }
+        localStorage.removeItem('hasSeenOnboarding');
+        alert('Данные успешно очищены.');
+        window.location.reload();
+      } catch (err) {
+        console.error('Clear failed', err);
+        alert('Ошибка при очистке данных');
+      }
     }
   };
 

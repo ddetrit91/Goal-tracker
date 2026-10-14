@@ -3,7 +3,6 @@ import { useGoalStore } from '@/store/useGoalStore';
 import { DreamCard } from '@/components/vision/DreamCard';
 import { WishlistCard } from '@/components/vision/WishlistCard';
 import { GoalFormModal } from '@/components/goals/GoalFormModal';
-import { Button } from '@/components/common/Button';
 import { Sparkles, Gift } from 'lucide-react';
 import type { Goal } from '@/types/goal';
 
@@ -92,6 +91,7 @@ export function VisionBoardPage() {
           setIsConvertModalOpen(false);
           setSourceGoal(null);
         }}
+        initialData={sourceGoal}
         parentId={null}
         defaultHorizon="annual"
       />

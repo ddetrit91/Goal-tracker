@@ -119,11 +119,13 @@ class LocalGoalRepository implements IGoalRepository {
     await simulateDelay();
     const goals = this.getData();
     const index = goals.findIndex((g) => g.id === id);
-    if (index === -1) throw new Error(`Goal with id ${id} not found`);
+    const existing = goals[index];
+    if (index === -1 || !existing) throw new Error(`Goal with id ${id} not found`);
     
     const updatedGoal: Goal = {
-      ...goals[index],
+      ...existing,
       ...data,
+      id,
       updatedAt: new Date().toISOString(),
     };
     goals[index] = updatedGoal;
@@ -200,11 +202,13 @@ class LocalTaskRepository implements ITaskRepository {
     await simulateDelay();
     const tasks = this.getData();
     const index = tasks.findIndex((t) => t.id === id);
-    if (index === -1) throw new Error(`Task with id ${id} not found`);
+    const existing = tasks[index];
+    if (index === -1 || !existing) throw new Error(`Task with id ${id} not found`);
     
     const updatedTask: Task = {
-      ...tasks[index],
+      ...existing,
       ...data,
+      id,
       updatedAt: new Date().toISOString(),
     };
     tasks[index] = updatedTask;
@@ -287,11 +291,13 @@ class LocalCategoryRepository implements ICategoryRepository {
     await simulateDelay();
     const categories = this.getData();
     const index = categories.findIndex((c) => c.id === id);
-    if (index === -1) throw new Error(`Category with id ${id} not found`);
+    const existing = categories[index];
+    if (index === -1 || !existing) throw new Error(`Category with id ${id} not found`);
     
     const updatedCategory: Category = {
-      ...categories[index],
+      ...existing,
       ...data,
+      id,
       updatedAt: new Date().toISOString(),
     };
     categories[index] = updatedCategory;

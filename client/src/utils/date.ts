@@ -6,7 +6,6 @@ import {
   endOfMonth,
   startOfQuarter,
   endOfQuarter,
-  isAfter,
   isBefore,
   parseISO,
   isValid,

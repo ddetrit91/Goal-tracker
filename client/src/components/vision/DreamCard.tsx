@@ -1,6 +1,4 @@
-import * as React from 'react';
 import { Button } from '@/components/common/Button';
-import { CategoryBadge } from '@/components/common/CategoryBadge';
 import { Sparkles, ArrowRight } from 'lucide-react';
 import type { Goal } from '@/types/goal';
 

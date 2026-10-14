@@ -142,19 +142,54 @@ export const useTaskStore = create<TaskState>((set, get) => ({
     const task = get().tasks.find((t) => t.id === id);
     if (!task) return;
 
-    const updatedData: UpdateTaskInput = {
-      isCompleted: !task.isCompleted,
-      completedAt: !task.isCompleted ? new Date().toISOString() : null,
-    };
+    const newCompleted = !task.isCompleted;
+    const completedAt = newCompleted ? new Date().toISOString() : null;
 
-    // Используем уже обновленный updateTask с API
-    await get().updateTask(id, updatedData);
-    
-    // Обновляем прогресс цели на фронтенде после успешного ответа сервера
+    // Оптимистичное обновление в store для мгновенного отклика UI
+    set((state) => ({
+      tasks: state.tasks.map((t) =>
+        t.id === id ? { ...t, isCompleted: newCompleted, completedAt } : t
+      ),
+    }));
+
+    // Мгновенный пересчет связанной цели и всех вышестоящих родителей
     if (task.goalId) {
-      setTimeout(() => {
-        useGoalStore.getState().recalculateProgress(task.goalId!);
-      }, 100);
+      await useGoalStore.getState().recalculateProgress(task.goalId);
+    }
+
+    // Отправка на сервер
+    try {
+      const userId = getUserId();
+      if (!userId) return;
+
+      const res = await fetch(`${API_BASE}/tasks/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-User-Id': userId,
+        },
+        body: JSON.stringify({ isCompleted: newCompleted, completedAt }),
+      });
+
+      if (!res.ok) {
+        throw new Error('Failed to update task');
+      }
+
+      const updated = await res.json();
+      set((state) => ({
+        tasks: state.tasks.map((t) => (t.id === id ? { ...t, ...updated } : t)),
+      }));
+    } catch (err) {
+      console.error('Toggle complete failed:', err);
+      // Откат при сетевой ошибке
+      set((state) => ({
+        tasks: state.tasks.map((t) =>
+          t.id === id ? { ...t, isCompleted: !newCompleted, completedAt: task.completedAt } : t
+        ),
+      }));
+      if (task.goalId) {
+        await useGoalStore.getState().recalculateProgress(task.goalId);
+      }
     }
   },
 

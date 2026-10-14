@@ -2,7 +2,7 @@
 import { Hono } from 'hono';
 import { db } from '../db';
 import { users, goals as goalsTable, activityLogs, settings as settingsTable } from '../db/schema';
-import { eq, count, sql, and, isNull, desc } from 'drizzle-orm'; // <-- ДОБАВЛЕН desc
+import { eq, count, sql, and, isNull } from 'drizzle-orm';
 import bcrypt from 'bcryptjs';
 import { randomUUID } from 'crypto';
 
@@ -89,7 +89,8 @@ admin.put('/users/:id/role', async (c) => {
     
     if (role !== 'admin') {
       const admins = await db.select({ count: count() }).from(users).where(eq(users.role, 'admin'));
-      if (admins[0]?.count <= 1) {
+      const adminCount = admins[0]?.count ?? 0;
+      if (adminCount <= 1) {
         return c.json({ error: 'Cannot remove the last admin' }, 400);
       }
     }

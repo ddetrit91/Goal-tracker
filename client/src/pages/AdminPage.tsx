@@ -27,7 +27,6 @@ interface Stats {
   requestsByDay: { date: string; count: number }[];
 }
 
-// ЕДИНСТВЕННЫЙ ПРАВИЛЬНЫЙ ИНТЕРФЕЙС ДЛЯ АКТИВНОСТИ
 interface ActivityLog {
   userId: string;
   userName: string;
@@ -46,13 +45,10 @@ export function AdminPage() {
   const [error, setError] = React.useState<string | null>(null);
   const [toast, setToast] = React.useState<{ message: string; type: 'success' | 'error' } | null>(null);
   
-  // Состояния для модальных окон
   const [roleModalUser, setRoleModalUser] = React.useState<User | null>(null);
   const [resetPasswordUser, setResetPasswordUser] = React.useState<User | null>(null);
   const [newPassword, setNewPassword] = React.useState('');
   const [createUserModalOpen, setCreateUserModalOpen] = React.useState(false);
-  
-  // Форма создания пользователя
   const [newUserForm, setNewUserForm] = React.useState({ email: '', password: '', name: '', role: 'user' });
 
   const showToast = (message: string, type: 'success' | 'error') => {
@@ -60,43 +56,43 @@ export function AdminPage() {
     setTimeout(() => setToast(null), 3000);
   };
 
-  const fetchUsers = async () => {
+  const fetchUsers = React.useCallback(async () => {
     setLoading(true);
     try {
       const data = await adminService.getUsers();
       setUsers(data);
       setError(null);
-    } catch (err) {
+    } catch {
       setError('Не удалось загрузить пользователей');
       showToast('Ошибка загрузки пользователей', 'error');
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const fetchStats = async () => {
+  const fetchStats = React.useCallback(async () => {
     try {
       const data = await adminService.getStats();
       setStats(data);
     } catch (err) {
       console.error('Failed to fetch stats', err);
     }
-  };
+  }, []);
 
-  const fetchActivity = async () => {
+  const fetchActivity = React.useCallback(async () => {
     try {
       const data = await adminService.getActivity();
       setActivityLogs(data);
     } catch (err) {
       console.error('Failed to load activity', err);
     }
-  };
+  }, []);
 
   React.useEffect(() => {
     if (activeTab === 'users') fetchUsers();
     if (activeTab === 'stats') fetchStats();
     if (activeTab === 'activity') fetchActivity();
-  }, [activeTab]);
+  }, [activeTab, fetchUsers, fetchStats, fetchActivity]);
 
   const handleUpdateRole = async (userId: string, newRole: string) => {
     try {
@@ -104,7 +100,7 @@ export function AdminPage() {
       showToast(`Роль успешно обновлена`, 'success');
       setRoleModalUser(null);
       fetchUsers();
-    } catch (err) {
+    } catch {
       showToast('Не удалось обновить роль', 'error');
     }
   };
@@ -119,7 +115,7 @@ export function AdminPage() {
       showToast('Пароль успешно изменен', 'success');
       setResetPasswordUser(null);
       setNewPassword('');
-    } catch (err) {
+    } catch {
       showToast('Не удалось изменить пароль', 'error');
     }
   };
@@ -130,7 +126,7 @@ export function AdminPage() {
       await adminService.deleteUser(userId);
       showToast('Пользователь удален', 'success');
       fetchUsers();
-    } catch (err) {
+    } catch {
       showToast('Не удалось удалить пользователя', 'error');
     }
   };
@@ -142,7 +138,7 @@ export function AdminPage() {
       setCreateUserModalOpen(false);
       setNewUserForm({ email: '', password: '', name: '', role: 'user' });
       fetchUsers();
-    } catch (err) {
+    } catch {
       showToast('Не удалось создать пользователя', 'error');
     }
   };
@@ -166,7 +162,6 @@ export function AdminPage() {
           <p className="text-slate-500 dark:text-slate-400 mt-1">Управление пользователями и системными настройками</p>
         </div>
         
-        {/* КНОПКА СОЗДАНИЯ ПОЛЬЗОВАТЕЛЯ */}
         {activeTab === 'users' && (
           <button
             onClick={() => setCreateUserModalOpen(true)}
@@ -198,7 +193,6 @@ export function AdminPage() {
       </div>
 
       {/* Вкладка: Пользователи */}
-      {/* Вкладка: Пользователи (ИСПРАВЛЕННЫЙ ВИЗУАЛ) */}
       {activeTab === 'users' && (
         <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
           {loading ? (
@@ -210,8 +204,8 @@ export function AdminPage() {
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm text-left">
-                {/* ИСПРАВЛЕНО: Заголовки теперь светлее (dark:text-slate-400) */}
-                <thead className="bg-slate-50 dark:bg-slate-900/80 text-slate-500 dark:text-slate-400 uppercase text-xs tracking-wider">
+                {/* ИСПРАВЛЕНО: Заголовки теперь четче видны в светлой теме (text-slate-600) */}
+                <thead className="bg-slate-50 dark:bg-slate-900/80 text-slate-600 dark:text-slate-400 uppercase text-xs tracking-wider">
                   <tr>
                     <th className="px-6 py-4 font-semibold">Имя</th>
                     <th className="px-6 py-4 font-semibold">Email</th>
@@ -225,11 +219,10 @@ export function AdminPage() {
                 <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
                   {users.map((user) => (
                     <tr key={user.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
-                      {/* Имя ярко-белым */}
                       <td className="px-6 py-4 font-medium text-slate-900 dark:text-white">{user.name || '—'}</td>
                       
-                      {/* Email светло-серым */}
-                      <td className="px-6 py-4 text-slate-300">{user.email}</td>
+                      {/* ИСПРАВЛЕНО: Email теперь виден в светлой теме (text-slate-600) */}
+                      <td className="px-6 py-4 text-slate-600 dark:text-slate-300">{user.email}</td>
                       
                       <td className="px-6 py-4">
                         <span className={cn(
@@ -242,27 +235,27 @@ export function AdminPage() {
                         </span>
                       </td>
                       
-                      {/* Число целей ярко-белым */}
-                      <td className="px-6 py-4 text-slate-100 font-mono font-bold">{user.goalCount}</td>
+                      {/* ИСПРАВЛЕНО: Число целей теперь темно-серым в светлой теме (text-slate-900) */}
+                      <td className="px-6 py-4 text-slate-900 dark:text-slate-100 font-mono font-bold">{user.goalCount}</td>
                       
-                      {/* ИСПРАВЛЕНО: Дата регистрации теперь с временем (toLocaleString) */}
-                      <td className="px-6 py-4 text-slate-300">
+                      {/* ИСПРАВЛЕНО: Даты теперь видны в светлой теме (text-slate-600) */}
+                      <td className="px-6 py-4 text-slate-600 dark:text-slate-300">
                         {new Date(user.createdAt).toLocaleString('ru-RU')}
                       </td>
                       
-                      <td className="px-6 py-4 text-slate-300">
+                      <td className="px-6 py-4 text-slate-600 dark:text-slate-300">
                         {user.lastLogin ? new Date(user.lastLogin).toLocaleString('ru-RU') : '—'}
                       </td>
                       
                       <td className="px-6 py-4 text-right">
                         <div className="flex justify-end gap-1">
-                          <button onClick={() => setRoleModalUser(user)} className="p-1.5 text-slate-400 hover:text-indigo-400 hover:bg-indigo-900/20 rounded-lg transition-colors" title="Изменить роль">
+                          <button onClick={() => setRoleModalUser(user)} className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:text-indigo-400 dark:hover:bg-indigo-900/20 rounded-lg transition-colors" title="Изменить роль">
                             <UserCog className="h-4 w-4" />
                           </button>
-                          <button onClick={() => setResetPasswordUser(user)} className="p-1.5 text-slate-400 hover:text-amber-400 hover:bg-amber-900/20 rounded-lg transition-colors" title="Сбросить пароль">
+                          <button onClick={() => setResetPasswordUser(user)} className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 dark:hover:text-amber-400 dark:hover:bg-amber-900/20 rounded-lg transition-colors" title="Сбросить пароль">
                             <Key className="h-4 w-4" />
                           </button>
-                          <button onClick={() => handleDeleteUser(user.id)} className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-red-900/20 rounded-lg transition-colors" title="Удалить">
+                          <button onClick={() => handleDeleteUser(user.id)} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:text-red-400 dark:hover:bg-red-900/20 rounded-lg transition-colors" title="Удалить">
                             <Trash2 className="h-4 w-4" />
                           </button>
                         </div>
@@ -279,7 +272,6 @@ export function AdminPage() {
       {/* Вкладка: Статистика */}
       {activeTab === 'stats' && (
         <div className="space-y-6">
-          {/* Карточки метрик */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {[
               { label: 'Всего пользователей', value: stats?.totalUsers ?? '...', icon: Users, color: 'indigo' },
@@ -296,9 +288,7 @@ export function AdminPage() {
             ))}
           </div>
 
-          {/* Графики по дням */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Регистрации по дням */}
             <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-6">
               <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
                 <CalendarDays className="h-5 w-5 text-indigo-500" />
@@ -323,7 +313,6 @@ export function AdminPage() {
               </div>
             </div>
 
-            {/* Запросы по дням */}
             <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-6">
               <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
                 <Activity className="h-5 w-5 text-emerald-500" />
@@ -351,21 +340,21 @@ export function AdminPage() {
         </div>
       )}
 
-      {/* Вкладка: Активность (ФИНАЛЬНЫЙ ВИЗУАЛ) */}
+      {/* Вкладка: Активность */}
       {activeTab === 'activity' && (
         <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
           <div className="p-6 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center">
             <h3 className="text-lg font-semibold text-slate-900 dark:text-white flex items-center gap-2">
               <LogIn className="h-5 w-5 text-blue-500" /> Журнал входов в систему
             </h3>
-            <span className="text-xs text-slate-400 bg-slate-100 dark:bg-slate-700/50 px-2 py-1 rounded-full border border-slate-200 dark:border-slate-600">
+            <span className="text-xs text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-700/50 px-2 py-1 rounded-full border border-slate-200 dark:border-slate-600">
               Всего записей: {activityLogs.length}
             </span>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm text-left">
-              {/* ИСПРАВЛЕНО: Заголовки теперь светлее (text-slate-400) */}
-              <thead className="bg-slate-50 dark:bg-slate-900/80 text-slate-500 dark:text-slate-400 uppercase text-xs tracking-wider">
+              {/* ИСПРАВЛЕНО: Заголовки четче в светлой теме */}
+              <thead className="bg-slate-50 dark:bg-slate-900/80 text-slate-600 dark:text-slate-400 uppercase text-xs tracking-wider">
                 <tr>
                   <th className="px-6 py-4 font-semibold">Пользователь</th>
                   <th className="px-6 py-4 font-semibold">Email</th>
@@ -379,8 +368,8 @@ export function AdminPage() {
                   <tr key={index} className="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
                     <td className="px-6 py-4 font-medium text-slate-900 dark:text-white">{log.userName || 'Unknown'}</td>
                     
-                    {/* Email чуть светлее */}
-                    <td className="px-6 py-4 text-slate-300">{log.userEmail}</td>
+                    {/* ИСПРАВЛЕНО: Email виден в светлой теме */}
+                    <td className="px-6 py-4 text-slate-600 dark:text-slate-300">{log.userEmail}</td>
                     
                     <td className="px-6 py-4">
                       <span className={cn(
@@ -393,14 +382,14 @@ export function AdminPage() {
                       </span>
                     </td>
                     
-                    {/* Число запросов ярко-белым */}
-                    <td className="px-6 py-4 text-slate-100 font-mono font-bold">{log.requestCount}</td>
+                    {/* ИСПРАВЛЕНО: Число запросов темно-серым в светлой теме */}
+                    <td className="px-6 py-4 text-slate-900 dark:text-slate-100 font-mono font-bold">{log.requestCount}</td>
                     
-                    {/* Дата светло-серым */}
-                    <td className="px-6 py-4 text-slate-300">{new Date(log.lastLogin).toLocaleString('ru-RU')}</td>
+                    {/* ИСПРАВЛЕНО: Дата видна в светлой теме */}
+                    <td className="px-6 py-4 text-slate-600 dark:text-slate-300">{new Date(log.lastLogin).toLocaleString('ru-RU')}</td>
                   </tr>
                 )) : (
-                  <tr><td colSpan={5} className="px-6 py-8 text-center text-slate-400">Нет данных о входах.</td></tr>
+                  <tr><td colSpan={5} className="px-6 py-8 text-center text-slate-500 dark:text-slate-400">Нет данных о входах.</td></tr>
                 )}
               </tbody>
             </table>

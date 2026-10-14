@@ -22,7 +22,7 @@ export interface Task {
   description: string;
   horizon: TaskHorizon;
   category: string;
-  dueDate: string;
+  dueDate: string | null;
   isCompleted: boolean;
   completedAt: string | null;
   priority: TaskPriority;

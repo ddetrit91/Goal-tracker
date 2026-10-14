@@ -1,7 +1,8 @@
 // client/src/store/useGoalStore.ts
 import { create } from 'zustand';
 import type { Goal, CreateGoalInput, UpdateGoalInput } from '@/types/goal';
-import type { Task } from '@/types/task';
+import { useTaskStore } from './useTaskStore';
+import { toISODateString } from '@/utils/date';
 
 const getUserId = () => {
   const userStr = localStorage.getItem('user');
@@ -113,7 +114,9 @@ export const useGoalStore = create<GoalState>((set, get) => ({
         goals: state.goals.map((g) => g.id === id ? { ...g, ...updated } : g)
       }));
       
-      if (updated.parentId && (data.status !== undefined || data.progress !== undefined)) {
+      if (data.status !== undefined && data.progress === undefined) {
+        await get().recalculateProgress(id);
+      } else if (updated.parentId && (data.status !== undefined || data.progress !== undefined)) {
         await get().recalculateProgress(updated.parentId);
       }
       
@@ -163,7 +166,7 @@ export const useGoalStore = create<GoalState>((set, get) => ({
     }
   },
 
-  // НОВЫЙ МЕТОД: Переключение "Цели дня"
+  // Переключение "Цели дня" (Фокус дня)
   toggleTodayGoal: async (id) => {
     const userId = getUserId();
     if (!userId) throw new Error('User not authenticated');
@@ -173,14 +176,44 @@ export const useGoalStore = create<GoalState>((set, get) => ({
 
     const newValue = !goal.isTodayGoal;
 
-    // Оптимистичное обновление UI
+    // Оптимистичное обновление UI цели
     set((state) => ({
       goals: state.goals.map((g) => 
         g.id === id ? { ...g, isTodayGoal: newValue } : g
       ),
     }));
 
+    // Находим все подцели любого уровня вложенности
+    const allGoals = get().goals;
+    const getAllDescendantIds = (parentId: string): string[] => {
+      const children = allGoals.filter((g) => g.parentId === parentId);
+      return [parentId, ...children.flatMap((c) => getAllDescendantIds(c.id))];
+    };
+    const goalHierarchyIds = getAllDescendantIds(id);
+
+    const today = toISODateString(new Date());
+    const taskStore = useTaskStore.getState();
+
     try {
+      // Синхронизируем задачи этой цели и её подцелей
+      if (newValue) {
+        // При добавлении цели в фокус дня: назначаем все невыполненные задачи на сегодня
+        const tasksToAssign = taskStore.tasks.filter(
+          (t) => t.goalId && goalHierarchyIds.includes(t.goalId) && !t.isCompleted && t.dueDate !== today
+        );
+        await Promise.all(
+          tasksToAssign.map((t) => taskStore.updateTask(t.id, { dueDate: today }))
+        );
+      } else {
+        // При снятии цели с фокуса дня: убираем дату у невыполненных задач, назначенных на сегодня
+        const tasksToUnassign = taskStore.tasks.filter(
+          (t) => t.goalId && goalHierarchyIds.includes(t.goalId) && !t.isCompleted && t.dueDate === today
+        );
+        await Promise.all(
+          tasksToUnassign.map((t) => taskStore.updateTask(t.id, { dueDate: null }))
+        );
+      }
+
       const res = await fetch(`${API_BASE}/goals/${id}`, {
         method: 'PUT',
         headers: { 
@@ -208,27 +241,49 @@ export const useGoalStore = create<GoalState>((set, get) => ({
   recalculateProgress: async (goalId) => {
     const { goals } = get();
     const parent = goals.find((g) => g.id === goalId);
-    if (!parent || !parent.isProgressCalculated) return;
+    if (!parent) return;
 
+    // Получаем актуальный список задач из useTaskStore
+    const allTasks = useTaskStore.getState().tasks;
+    const childTasks = allTasks.filter((t) => t.goalId === goalId);
     const childGoals = goals.filter((g) => g.parentId === goalId);
-    const childTasks: Task[] = []; 
 
     const totalItems = childGoals.length + childTasks.length;
-    if (totalItems === 0) return;
+    let newProgress = 0;
 
-    const completedGoals = childGoals.filter((g) => g.status === 'completed').length;
-    const completedTasks = childTasks.filter((t) => t.isCompleted).length;
-    const totalCompleted = completedGoals + completedTasks;
-
-    const newProgress = Math.round((totalCompleted / totalItems) * 100);
+    if (totalItems > 0) {
+      const tasksProgress = childTasks.reduce((sum, t) => sum + (t.isCompleted ? 100 : 0), 0);
+      const goalsProgress = childGoals.reduce((sum, g) => {
+        if (g.status === 'completed') return sum + 100;
+        return sum + Math.min(100, Math.max(0, g.progress ?? 0));
+      }, 0);
+      newProgress = Math.min(100, Math.max(0, Math.round((tasksProgress + goalsProgress) / totalItems)));
+    } else {
+      newProgress = parent.status === 'completed' ? 100 : 0;
+    }
 
     if (parent.progress !== newProgress) {
+      // Реактивно обновляем локальное состояние
       set((state) => ({
         goals: state.goals.map((g) =>
           g.id === goalId ? { ...g, progress: newProgress } : g
         ),
       }));
-      
+
+      // Сохраняем прогресс на сервере
+      const userId = getUserId();
+      if (userId) {
+        await fetch(`${API_BASE}/goals/${goalId}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-User-Id': userId,
+          },
+          body: JSON.stringify({ progress: newProgress }),
+        }).catch((err) => console.error('Failed to persist progress:', err));
+      }
+
+      // Рекурсивно пересчитываем родительскую цель на всех уровнях
       if (parent.parentId) {
         await get().recalculateProgress(parent.parentId);
       }

@@ -9,7 +9,7 @@ import { ThemeToggle } from '@/components/common/ThemeToggle';
 const NAV_ITEMS = [
   { path: '/today', label: 'Сегодня', icon: CalendarCheck, tourId: 'today' },
   { path: '/goals', label: 'Цели', icon: Target, tourId: 'goals' },
-  { path: '/vision-board', label: 'Мечты', icon: Star },
+  { path: '/vision-board', label: 'Мечты', icon: Star, tourId: 'vision-board' },
   { path: '/analytics', label: 'Обзор', icon: BarChart3, tourId: 'analytics' },
   { path: '/settings', label: 'Настройки', icon: Settings, tourId: 'settings' },
 ];
@@ -31,9 +31,7 @@ export function Navbar() {
 
   const restartTour = () => {
     localStorage.removeItem('hasSeenOnboarding');
-    if (location.pathname !== '/goals') {
-      navigate('/goals');
-    }
+    navigate('/today');
     setTimeout(() => window.location.reload(), 100);
   };
 

@@ -5,9 +5,11 @@ import { useTaskStore } from '@/store/useTaskStore';
 import { ProgressBar } from '@/components/common/ProgressBar';
 import { CategoryBadge } from '@/components/common/CategoryBadge';
 import { TaskItem } from '@/components/today/TaskItem';
-import { ChevronDown, ChevronRight, Plus, Pencil, Trash2, Star } from 'lucide-react';
+import { ChevronDown, ChevronRight, Plus, Pencil, Trash2, Star, Calendar } from 'lucide-react';
 import { cn } from '@/utils/cn';
-import { isBefore, parseISO, differenceInDays } from 'date-fns';
+import { parseISO, differenceInDays, format } from 'date-fns';
+import { ru } from 'date-fns/locale';
+import { toISODateString } from '@/utils/date';
 import type { Goal } from '@/types/goal';
 import type { Task } from '@/types/task';
 
@@ -17,21 +19,75 @@ interface GoalCardProps {
   onAddSubgoal?: (parentId: string) => void;
   onEditGoal?: (goal: Goal) => void;
   onDeleteGoal?: (id: string) => void;
-  tasks?: Task[]; // <-- ДОБАВЛЕНО: Возможность передать задачи извне (для TodayPage)
+  tasks?: Task[];
 }
 
 export function GoalCard({ goal, level = 0, onAddSubgoal, onEditGoal, onDeleteGoal, tasks }: GoalCardProps) {
   const [isExpanded, setIsExpanded] = React.useState(false);
-  const { getChildren, toggleTodayGoal } = useGoalStore();
-  
-  // Получаем все задачи из стора
-  const allStoreTasks = useTaskStore((state) => state.tasks);
+  const [isAddingTask, setIsAddingTask] = React.useState(false);
+  const [newTaskTitle, setNewTaskTitle] = React.useState('');
+  const [isTaskForToday, setIsTaskForToday] = React.useState(false);
+  const [isSubmittingTask, setIsSubmittingTask] = React.useState(false);
+
+  const { goals, getChildren, toggleTodayGoal } = useGoalStore();
+  const { tasks: allStoreTasks, createTask, toggleDailyFocus } = useTaskStore();
+
+  // Проверяем, является ли эта цель или любая из её родительских целью дня
+  const isGoalForToday = React.useMemo(() => {
+    if (goal.isTodayGoal) return true;
+    let current = goal;
+    while (current.parentId) {
+      const parent = goals.find((g) => g.id === current.parentId);
+      if (!parent) break;
+      if (parent.isTodayGoal) return true;
+      current = parent;
+    }
+    return false;
+  }, [goal, goals]);
+
+  React.useEffect(() => {
+    if (isAddingTask) {
+      setIsTaskForToday(isGoalForToday);
+    }
+  }, [isAddingTask, isGoalForToday]);
   
   // Используем переданные задачи (если есть) или фильтруем из стора
   const relevantTasks = tasks || allStoreTasks.filter((t) => t.goalId === goal.id);
   
   const childGoals = getChildren(goal.id);
-  const hasChildren = childGoals.length > 0 || relevantTasks.length > 0;
+  const hasChildren = childGoals.length > 0 || relevantTasks.length > 0 || isAddingTask;
+
+  const handleCreateTask = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newTaskTitle.trim() || isSubmittingTask) return;
+
+    setIsSubmittingTask(true);
+    try {
+      await createTask({
+        title: newTaskTitle.trim(),
+        description: '',
+        horizon: 'daily',
+        goalId: goal.id,
+        category: goal.category,
+        dueDate: (isTaskForToday || isGoalForToday) ? toISODateString(new Date()) : null,
+        priority: 'medium',
+        estimatedMinutes: null,
+        isRecurring: false,
+        recurrenceRule: null,
+        isCompleted: false,
+        completedAt: null,
+        isDailyFocus: false,
+        tags: [],
+      });
+      setNewTaskTitle('');
+      setIsAddingTask(false);
+      setIsExpanded(true);
+    } catch (err) {
+      console.error('Failed to create task for goal:', err);
+    } finally {
+      setIsSubmittingTask(false);
+    }
+  };
 
   const daysLeft = React.useMemo(() => {
     if (!goal.targetDate) return null;
@@ -39,7 +95,6 @@ export function GoalCard({ goal, level = 0, onAddSubgoal, onEditGoal, onDeleteGo
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     
-    if (isBefore(target, today)) return 0;
     return differenceInDays(target, today);
   }, [goal.targetDate]);
 
@@ -95,12 +150,16 @@ export function GoalCard({ goal, level = 0, onAddSubgoal, onEditGoal, onDeleteGo
 
                 {/* Бейдж обратного отсчета */}
                 {daysLeft !== null && (
-                  <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${
-                    daysLeft === 0 ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300' :
-                    daysLeft <= 7 ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300' :
-                    'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300'
+                  <span className={`text-[10px] px-2 py-0.5 rounded font-medium whitespace-nowrap ${
+                    daysLeft < 0 ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300' :
+                    daysLeft === 0 ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300' :
+                    daysLeft <= 7 ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300' :
+                    'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300'
                   }`}>
-                    {daysLeft === 0 ? 'Просрочено' : `${daysLeft} дн.`}
+                    {daysLeft < 0 ? `Просрочено на ${Math.abs(daysLeft)} дн.` :
+                     daysLeft === 0 ? 'Срок сегодня!' :
+                     daysLeft === 1 ? 'Завтра' :
+                     `${daysLeft} дн.`}
                   </span>
                 )}
 
@@ -118,21 +177,47 @@ export function GoalCard({ goal, level = 0, onAddSubgoal, onEditGoal, onDeleteGo
               </div>
             </div>
             
-            {goal.description && <p className="text-sm text-slate-500 mb-3 line-clamp-2 dark:text-slate-400">{goal.description}</p>}
+            {goal.description && <p className="text-sm text-slate-500 mb-2 line-clamp-2 dark:text-slate-400">{goal.description}</p>}
+            
+            {goal.targetDate && (
+              <div className="flex items-center gap-1.5 text-xs text-slate-400 dark:text-slate-400 mb-3">
+                <Calendar className="h-3.5 w-3.5 text-indigo-500 shrink-0" />
+                <span>
+                  {goal.startDate ? `${format(parseISO(goal.startDate), 'd MMM yyyy', { locale: ru })} — ` : 'Срок до: '}
+                  {format(parseISO(goal.targetDate), 'd MMMM yyyy', { locale: ru })}
+                </span>
+              </div>
+            )}
+
             <ProgressBar progress={goal.progress} size="sm" />
             
-            {/* СЧЕТЧИК ЗАДАЧ И КНОПКА ДОБАВЛЕНИЯ ПОДЦЕЛИ */}
-            <div className="flex items-center justify-between mt-3">
+            {/* СЧЕТЧИК ЗАДАЧ И КНОПКА ДОБАВЛЕНИЯ ПОДЦЕЛИ / ЗАДАЧИ */}
+            <div className="flex items-center justify-between mt-3 flex-wrap gap-2">
               <span className="text-xs text-slate-400 dark:text-slate-500">
                 {relevantTasks.filter(t => t.isCompleted).length} / {relevantTasks.length} задач
               </span>
               
-              {/* Показываем кнопку добавления подцели только если задачи не переданы извне */}
+              {/* Показываем кнопки добавления только если задачи не переданы извне */}
               {!tasks && (
-                <button className="text-xs font-medium text-indigo-600 hover:text-indigo-800 flex items-center gap-1 transition-colors dark:text-indigo-400 dark:hover:text-indigo-300"
-                  onClick={() => onAddSubgoal && onAddSubgoal(goal.id)} title="Создать подцель">
-                  <Plus className="h-3 w-3" /> Добавить подцель
-                </button>
+                <div className="flex items-center gap-2">
+                  <button 
+                    className="text-xs font-medium text-emerald-600 hover:text-emerald-800 flex items-center gap-1 transition-colors dark:text-emerald-400 dark:hover:text-emerald-300"
+                    onClick={() => {
+                      setIsAddingTask(true);
+                      setIsExpanded(true);
+                    }} 
+                    title="Добавить задачу к этой цели"
+                  >
+                    <Plus className="h-3 w-3" /> Добавить задачу
+                  </button>
+                  <button 
+                    className="text-xs font-medium text-indigo-600 hover:text-indigo-800 flex items-center gap-1 transition-colors dark:text-indigo-400 dark:hover:text-indigo-300"
+                    onClick={() => onAddSubgoal && onAddSubgoal(goal.id)} 
+                    title="Создать подцель"
+                  >
+                    <Plus className="h-3 w-3" /> Добавить подцель
+                  </button>
+                </div>
               )}
             </div>
           </div>
@@ -141,6 +226,50 @@ export function GoalCard({ goal, level = 0, onAddSubgoal, onEditGoal, onDeleteGo
         {/* РАСКРЫВАЮЩАЯСЯ ЧАСТЬ: ПОДЦЕЛИ И ЗАДАЧИ */}
         {isExpanded && (
           <div className="mt-4 space-y-3 animate-in slide-in-from-top-2 duration-200">
+            {/* ФОРМА БЫСТРОГО ДОБАВЛЕНИЯ ЗАДАЧИ К ЦЕЛИ */}
+            {isAddingTask && (
+              <form onSubmit={handleCreateTask} className="p-3 bg-slate-50 rounded-lg border border-slate-200 dark:bg-slate-700/50 dark:border-slate-600 mb-3 space-y-2">
+                <input
+                  type="text"
+                  value={newTaskTitle}
+                  onChange={(e) => setNewTaskTitle(e.target.value)}
+                  placeholder="Название новой задачи..."
+                  autoFocus
+                  className="w-full text-sm px-3 py-1.5 rounded-md border border-slate-300 bg-white dark:bg-slate-800 dark:border-slate-600 dark:text-white outline-none focus:border-indigo-500"
+                />
+                <div className="flex items-center justify-between">
+                  <label className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-300 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={isTaskForToday}
+                      onChange={(e) => setIsTaskForToday(e.target.checked)}
+                      className="rounded text-indigo-600"
+                    />
+                    Назначить на сегодня
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsAddingTask(false);
+                        setNewTaskTitle('');
+                      }}
+                      className="text-xs px-2.5 py-1 text-slate-500 hover:text-slate-700 dark:text-slate-400"
+                    >
+                      Отмена
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={!newTaskTitle.trim() || isSubmittingTask}
+                      className="text-xs px-3 py-1 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50"
+                    >
+                      {isSubmittingTask ? 'Сохранение...' : 'Создать'}
+                    </button>
+                  </div>
+                </div>
+              </form>
+            )}
+
             {childGoals.map((child) => (
               <GoalCard key={child.id} goal={child} level={level + 1} onAddSubgoal={onAddSubgoal} onEditGoal={onEditGoal} onDeleteGoal={onDeleteGoal} />
             ))}
@@ -148,11 +277,11 @@ export function GoalCard({ goal, level = 0, onAddSubgoal, onEditGoal, onDeleteGo
             {/* ОТОБРАЖЕНИЕ ЗАДАЧ С ЧЕКБОКСАМИ */}
             {relevantTasks.map((task) => (
               <div key={task.id} className="pl-2">
-                <TaskItem task={task} onToggleFocus={() => {}} /> 
+                <TaskItem task={task} onToggleFocus={toggleDailyFocus} /> 
               </div>
             ))}
 
-            {childGoals.length === 0 && relevantTasks.length === 0 && (
+            {childGoals.length === 0 && relevantTasks.length === 0 && !isAddingTask && (
               <p className="text-sm text-slate-400 italic text-center py-2 dark:text-slate-500">Пока нет дочерних элементов.</p>
             )}
           </div>

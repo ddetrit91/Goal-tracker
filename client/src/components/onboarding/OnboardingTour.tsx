@@ -1,5 +1,6 @@
 import * as React from 'react';
 import { createPortal } from 'react-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { ArrowRight, ArrowLeft, X, CheckCircle2 } from 'lucide-react';
 import { cn } from '@/utils/cn';
 
@@ -10,6 +11,7 @@ interface Step {
   location: string;
   howItWorks: string;
   benefit: string;
+  route?: string;
 }
 
 const TOUR_STEPS: Step[] = [
@@ -17,53 +19,78 @@ const TOUR_STEPS: Step[] = [
     id: 'welcome',
     targetSelector: '[data-tour="logo"]',
     title: 'Добро пожаловать в Goal Tracker!',
-    location: 'Шапка приложения',
-    howItWorks: 'Это твой личный центр управления целями. Здесь ты видишь баланс всех сфер жизни.',
-    benefit: 'Ты всегда знаешь, насколько близко к мечтам, без хаоса и бумажных блокнотов.',
+    location: 'Центр управления целями',
+    howItWorks: 'Персональная система для декомпозиции целей, баланса ключевых сфер жизни и ежедневного движения вперёд.',
+    benefit: 'Ясная картина приоритетов, фокус на главном и уверенность в каждом следующем шаге.',
   },
   {
     id: 'today',
-    targetSelector: '[data-tour="today"]',
-    title: 'Фокус на сегодня',
-    location: 'Нижнее меню (моб.) / Боковая панель (деск.)',
-    howItWorks: 'Здесь задачи на текущий день. Используй "Фокус дня" для главного приоритета. Сортировка автоматическая.',
-    benefit: 'Никакого паралича выбора. Ты сразу видишь, что делать прямо сейчас.',
+    targetSelector: '[data-tour="today-focus"]',
+    route: '/today',
+    title: 'Фокус дня и задачи на сегодня',
+    location: 'Вкладка «Сегодня»',
+    howItWorks: 'Здесь находятся главные фокусы дня и задачи. Нажмите звёздочку ⭐ у любой цели на странице «Цели» — и она вместе с подзадачами появится здесь. А при завершении цели отпразднуйте успех салютом конфетти 🎉!',
+    benefit: 'Никакого паралича выбора: вы открываете день с ясными 1–3 ключевыми действиями.',
   },
   {
     id: 'goals',
     targetSelector: '[data-tour="goals"]',
+    route: '/goals',
     title: 'Цели и декомпозиция',
-    location: 'Вкладка "Цели"',
-    howItWorks: 'Разбивай большие мечты на подцели и задачи. Прогресс считается автоматически по выполненным шагам.',
-    benefit: 'Большие цели перестают пугать. Каждый маленький шаг приближает к результату.',
+    location: 'Вкладка «Цели»',
+    howItWorks: 'Разбивайте масштабные цели по горизонтам (Год, Квартал, Месяц, Неделя). Добавляйте подцели и задачи: общий прогресс цели автоматически рассчитывается от выполненных подзадач.',
+    benefit: 'Большая мечта перестаёт пугать, превращаясь в логичную и выполнимую лестницу шагов.',
   },
   {
     id: 'deadlines',
     targetSelector: '[data-tour="deadlines"]',
-    title: 'Ближайшие дедлайны',
-    location: 'Над списком целей',
-    howItWorks: 'Показывает топ-3 самых срочных целей. Красный = просрочено, оранжевый < 7 дней.',
-    benefit: 'Ты никогда не пропустишь важный срок. Мотивация через визуальную срочность.',
+    route: '/goals',
+    title: 'Ближайшие сроки выполнения',
+    location: 'Страница «Цели» (над списком)',
+    howItWorks: 'Информативные карточки с обратным отсчётом дней («Срок сегодня!», «Завтра», «Осталось X дн.» или «Просрочено»). Блок автоматически фильтруется по выбранному горизонту и скрывает выполненные цели.',
+    benefit: 'Вы всегда контролируете приближающиеся сроки и держите фокус на самых срочных рубежах.',
+  },
+  {
+    id: 'calendar',
+    targetSelector: '[data-tour="calendar-toggle"]',
+    route: '/goals',
+    title: 'Календарь целей и задач',
+    location: 'Страница «Цели» (кнопка «Календарь»)',
+    howItWorks: 'Переключитесь в режим календаря, чтобы видеть интерактивную сетку месяца со сроками целей, выполненными достижениями и задачами на каждый день с удобной фильтрацией.',
+    benefit: 'Наглядная хронология планов, баланс нагрузки по дням и история побед в одном месте.',
+  },
+  {
+    id: 'vision',
+    targetSelector: '[data-tour="vision-board"]',
+    route: '/vision-board',
+    title: 'Доска визуализации (Мечты)',
+    location: 'Вкладка «Мечты»',
+    howItWorks: 'Создавайте карточки заветных желаний с яркими фотографиями, стоимостью и шкалой накоплений. Любую мечту можно в один клик превратить в практическую цель!',
+    benefit: 'Постоянное визуальное вдохновение и чёткий путь от абстрактной мечты к реальному плану.',
   },
   {
     id: 'analytics',
     targetSelector: '[data-tour="analytics"]',
-    title: 'Аналитика баланса',
-    location: 'Вкладка "Обзор"',
-    howItWorks: 'Круговая диаграмма заполненности сфер жизни + журнал побед за неделю.',
-    benefit: 'Видишь дисбаланс сразу. Здоровье проседает? Карьера растет? Данные, а не ощущения.',
+    route: '/analytics',
+    title: 'Колесо сфер жизни и аналитика',
+    location: 'Вкладка «Обзор»',
+    howItWorks: 'Круговая диаграмма баланса сфер (Здоровье, Карьера, Финансы, Семья и др.), процент закрытия целей и журнал побед.',
+    benefit: 'Помогает избегать перекосов, замечать зоны роста и гармонично развиваться во всех сферах.',
   },
   {
     id: 'settings',
     targetSelector: '[data-tour="settings"]',
-    title: 'Настройки и экспорт',
-    location: 'Вкладка "Настройки"',
-    howItWorks: 'Экспорт/импорт JSON-бэкапа, сброс данных, управление категориями.',
-    benefit: 'Твои данные принадлежат тебе. Никакой привязки к облаку, полный контроль.',
+    route: '/settings',
+    title: 'Настройки, экспорт и локальность',
+    location: 'Вкладка «Настройки»',
+    howItWorks: 'Экспорт и импорт базы в JSON, синхронизация с локальной SQLite базой, управление категориями и переключение тёмной темы.',
+    benefit: 'Ваши данные на 100% принадлежат вам. Полная конфиденциальность и безопасность.',
   },
 ];
 
 export function OnboardingTour() {
+  const navigate = useNavigate();
+  const location = useLocation();
   const [currentStepIndex, setCurrentStepIndex] = React.useState(0);
   const [isVisible, setIsVisible] = React.useState(false);
   const [tooltipRect, setTooltipRect] = React.useState<{ top: number; left: number }>({ top: 0, left: 0 });
@@ -75,6 +102,15 @@ export function OnboardingTour() {
     }
   }, []);
 
+  // Автоматический переход на нужную страницу тура при смене шага
+  React.useEffect(() => {
+    if (!isVisible) return;
+    const step = TOUR_STEPS[currentStepIndex];
+    if (step?.route && location.pathname !== step.route) {
+      navigate(step.route);
+    }
+  }, [isVisible, currentStepIndex, location.pathname, navigate]);
+
   React.useEffect(() => {
     if (!isVisible) return;
     const updatePosition = () => {
@@ -82,34 +118,37 @@ export function OnboardingTour() {
       if (!step) return; 
       
       const targetEl = document.querySelector(step.targetSelector);
+      const tooltipWidth = Math.min(420, window.innerWidth - 32);
       
       if (!targetEl || step.targetSelector === '[data-tour="logo"]') {
         setTooltipRect({ 
-          top: window.innerHeight / 2 - 150, 
-          left: window.innerWidth / 2 - 200 
+          top: Math.max(20, Math.min(window.innerHeight / 2 - 160, window.innerHeight - 350)), 
+          left: Math.max(16, (window.innerWidth - tooltipWidth) / 2) 
         });
         return;
       }
 
       const rect = targetEl.getBoundingClientRect();
-      const tooltipWidth = 400;
       const gap = 16;
 
       let top = rect.bottom + gap;
       let left = rect.left;
 
       if (rect.right + gap + tooltipWidth < window.innerWidth) {
-        top = rect.top;
+        top = Math.max(16, rect.top);
         left = rect.right + gap;
       } else if (rect.left - gap - tooltipWidth > 0) {
-        top = rect.top;
+        top = Math.max(16, rect.top);
         left = rect.left - gap - tooltipWidth;
       } else {
         top = rect.bottom + gap;
         left = Math.max(16, Math.min(rect.left, window.innerWidth - tooltipWidth - 16));
         
-        if (top + 300 > window.innerHeight) {
-          top = window.innerHeight - 320;
+        if (top + 340 > window.innerHeight) {
+          top = Math.max(16, rect.top - 340 - gap);
+          if (top < 16) {
+            top = Math.max(16, window.innerHeight - 350);
+          }
         }
       }
 
@@ -117,14 +156,40 @@ export function OnboardingTour() {
     };
 
     updatePosition();
+    const timer1 = setTimeout(updatePosition, 100);
+    const timer2 = setTimeout(updatePosition, 300);
+
     window.addEventListener('resize', updatePosition);
     window.addEventListener('scroll', updatePosition, true);
     
     return () => {
+      clearTimeout(timer1);
+      clearTimeout(timer2);
       window.removeEventListener('resize', updatePosition);
       window.removeEventListener('scroll', updatePosition, true);
     };
-  }, [isVisible, currentStepIndex]);
+  }, [isVisible, currentStepIndex, location.pathname]);
+
+  const isFirst = currentStepIndex === 0;
+  const isLast = currentStepIndex === TOUR_STEPS.length - 1;
+
+  const handleNext = React.useCallback(() => {
+    if (isLast) {
+      setIsVisible(false);
+      localStorage.setItem('hasSeenOnboarding', 'true');
+    } else {
+      setCurrentStepIndex(prev => prev + 1);
+    }
+  }, [isLast]);
+
+  const handlePrev = React.useCallback(() => {
+    if (!isFirst) setCurrentStepIndex(prev => prev - 1);
+  }, [isFirst]);
+
+  const handleSkip = React.useCallback(() => {
+    setIsVisible(false);
+    localStorage.setItem('hasSeenOnboarding', 'true');
+  }, []);
 
   React.useEffect(() => {
     if (!isVisible) return;
@@ -135,33 +200,14 @@ export function OnboardingTour() {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isVisible, currentStepIndex]);
+  }, [isVisible, handleSkip, handleNext, handlePrev]);
 
   const currentStep = TOUR_STEPS[currentStepIndex];
-  const isFirst = currentStepIndex === 0;
-  const isLast = currentStepIndex === TOUR_STEPS.length - 1;
-
-  const handleNext = () => {
-    if (isLast) {
-      setIsVisible(false);
-      localStorage.setItem('hasSeenOnboarding', 'true');
-    } else {
-      setCurrentStepIndex(prev => prev + 1);
-    }
-  };
-
-  const handlePrev = () => {
-    if (!isFirst) setCurrentStepIndex(prev => prev - 1);
-  };
-
-  const handleSkip = () => {
-    setIsVisible(false);
-    localStorage.setItem('hasSeenOnboarding', 'true');
-  };
 
   if (!isVisible || !currentStep) return null;
 
   const getTargetCoords = () => {
+    if (!currentStep || currentStep.targetSelector === '[data-tour="logo"]') return null;
     const targetEl = document.querySelector(currentStep.targetSelector);
     if (!targetEl) return null;
     const rect = targetEl.getBoundingClientRect();

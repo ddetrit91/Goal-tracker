@@ -149,6 +149,47 @@ auth.post('/goals', zValidator('json', createGoalSchema), async (c) => {
   }
 });
 
+// Вспомогательная функция для рекурсивного пересчета прогресса целей любой глубины
+async function recalculateGoalHierarchy(goalId: string, userId: string): Promise<void> {
+  const goal = await db.select().from(goalsTable).where(
+    and(eq(goalsTable.id, goalId), eq(goalsTable.userId, userId))
+  ).get();
+
+  if (!goal) return;
+
+  const childTasks = await db.select().from(tasksTable).where(
+    and(eq(tasksTable.goalId, goalId), eq(tasksTable.userId, userId))
+  );
+
+  const childGoals = await db.select().from(goalsTable).where(
+    and(eq(goalsTable.parentId, goalId), eq(goalsTable.userId, userId))
+  );
+
+  const totalItems = childTasks.length + childGoals.length;
+  let newProgress = 0;
+
+  if (totalItems > 0) {
+    const tasksProgress = childTasks.reduce((sum, t) => sum + (t.isCompleted ? 100 : 0), 0);
+    const goalsProgress = childGoals.reduce((sum, g) => {
+      if (g.status === 'completed') return sum + 100;
+      return sum + Math.min(100, Math.max(0, g.progress ?? 0));
+    }, 0);
+    newProgress = Math.min(100, Math.max(0, Math.round((tasksProgress + goalsProgress) / totalItems)));
+  } else {
+    newProgress = goal.status === 'completed' ? 100 : 0;
+  }
+
+  if (goal.progress !== newProgress) {
+    await db.update(goalsTable)
+      .set({ progress: newProgress })
+      .where(eq(goalsTable.id, goalId));
+  }
+
+  if (goal.parentId) {
+    await recalculateGoalHierarchy(goal.parentId, userId);
+  }
+}
+
 auth.put('/goals/:id', async (c) => {
   const userId = c.req.header('X-User-Id');
   if (!userId) return c.json({ error: 'Unauthorized' }, 401);
@@ -164,7 +205,17 @@ auth.put('/goals/:id', async (c) => {
     if (!existing) return c.json({ error: 'Цель не найдена' }, 404);
 
     const result = await db.update(goalsTable).set(body).where(eq(goalsTable.id, id)).returning();
-    return c.json((result as any[])[0]);
+    const updatedGoal = (result as any[])[0];
+
+    // Если изменился статус цели без явного прогресса, пересчитываем прогресс самой цели (и ее родителей)
+    if (body.status !== undefined && body.progress === undefined) {
+      await recalculateGoalHierarchy(id, userId);
+    } else if (updatedGoal.parentId && (body.status !== undefined || body.progress !== undefined)) {
+      // Иначе если изменился статус или прогресс, пересчитываем родительскую цель
+      await recalculateGoalHierarchy(updatedGoal.parentId, userId);
+    }
+
+    return c.json(updatedGoal);
   } catch (error) {
     console.error('Update goal error:', error);
     return c.json({ error: 'Ошибка обновления цели' }, 500);
@@ -184,6 +235,11 @@ auth.delete('/goals/:id', async (c) => {
     if (!existing) return c.json({ error: 'Цель не найдена' }, 404);
 
     await db.delete(goalsTable).where(eq(goalsTable.id, id));
+
+    if (existing.parentId) {
+      await recalculateGoalHierarchy(existing.parentId, userId);
+    }
+
     return c.json({ message: 'Цель успешно удалена' });
   } catch (error) {
     console.error('Delete goal error:', error);
@@ -215,8 +271,13 @@ auth.post('/tasks', zValidator('json', createTaskSchema), async (c) => {
     const result = await db.insert(tasksTable).values({
       id: randomUUID(), userId, ...body, isCompleted: false, isDailyFocus: false
     }).returning();
+    const newTask = (result as any[])[0];
 
-    return c.json((result as any[])[0], 201);
+    if (newTask.goalId) {
+      await recalculateGoalHierarchy(newTask.goalId, userId);
+    }
+
+    return c.json(newTask, 201);
   } catch (error) {
     console.error('Create task error:', error);
     return c.json({ error: 'Ошибка при создании задачи' }, 500);
@@ -240,21 +301,11 @@ auth.put('/tasks/:id', async (c) => {
     const result = await db.update(tasksTable).set(body).where(eq(tasksTable.id, id)).returning();
     const updatedTask = (result as any[])[0];
 
-    if (updatedTask.goalId && (body.isCompleted !== undefined || body.completedAt !== undefined)) {
-      const goalTasks = await db.select().from(tasksTable).where(eq(tasksTable.goalId, updatedTask.goalId));
-      const subGoals = await db.select().from(goalsTable).where(eq(goalsTable.parentId, updatedTask.goalId));
-
-      const totalItems = goalTasks.length + subGoals.length;
-      if (totalItems > 0) {
-        const completedTasks = goalTasks.filter(t => t.isCompleted).length;
-        const completedSubGoals = subGoals.filter(g => g.status === 'completed').length;
-        
-        const newProgress = Math.round(((completedTasks + completedSubGoals) / totalItems) * 100);
-
-        await db.update(goalsTable)
-          .set({ progress: newProgress })
-          .where(eq(goalsTable.id, updatedTask.goalId));
-      }
+    if (updatedTask.goalId) {
+      await recalculateGoalHierarchy(updatedTask.goalId, userId);
+    }
+    if (existing.goalId && existing.goalId !== updatedTask.goalId) {
+      await recalculateGoalHierarchy(existing.goalId, userId);
     }
 
     return c.json(updatedTask);
@@ -278,6 +329,11 @@ auth.delete('/tasks/:id', async (c) => {
     if (!existing) return c.json({ error: 'Задача не найдена' }, 404);
 
     await db.delete(tasksTable).where(eq(tasksTable.id, id));
+
+    if (existing.goalId) {
+      await recalculateGoalHierarchy(existing.goalId, userId);
+    }
+
     return c.json({ message: 'Задача успешно удалена' });
   } catch (error) {
     console.error('Delete task error:', error);
@@ -363,6 +419,126 @@ auth.delete('/categories/:id', async (c) => {
   } catch (error) {
     console.error('Delete category error:', error);
     return c.json({ error: 'Ошибка удаления категории' }, 500);
+  }
+});
+
+// --- РЕЗЕРВНОЕ КОПИРОВАНИЕ И ОЧИСТКА ДАННЫХ ---
+
+auth.get('/backup', async (c) => {
+  const userId = c.req.header('X-User-Id');
+  if (!userId) return c.json({ error: 'Unauthorized' }, 401);
+
+  try {
+    const goals = await db.select().from(goalsTable).where(eq(goalsTable.userId, userId));
+    const tasks = await db.select().from(tasksTable).where(eq(tasksTable.userId, userId));
+    const categories = await db.select().from(categoriesTable).where(eq(categoriesTable.userId, userId));
+
+    return c.json({
+      goals,
+      tasks,
+      categories,
+      exportedAt: new Date().toISOString(),
+      version: '0.1.0',
+    });
+  } catch (error) {
+    console.error('Backup export error:', error);
+    return c.json({ error: 'Ошибка при экспорте резервной копии' }, 500);
+  }
+});
+
+auth.post('/backup', async (c) => {
+  const userId = c.req.header('X-User-Id');
+  if (!userId) return c.json({ error: 'Unauthorized' }, 401);
+
+  try {
+    const data = await c.req.json();
+    if (!data || !Array.isArray(data.goals) || !Array.isArray(data.tasks)) {
+      return c.json({ error: 'Неверный формат данных бэкапа' }, 400);
+    }
+
+    // Удаляем старые данные пользователя
+    await db.delete(tasksTable).where(eq(tasksTable.userId, userId));
+    await db.delete(goalsTable).where(eq(goalsTable.userId, userId));
+    await db.delete(categoriesTable).where(eq(categoriesTable.userId, userId));
+
+    // Вставляем категории
+    if (data.categories && data.categories.length > 0) {
+      for (const cat of data.categories) {
+        await db.insert(categoriesTable).values({
+          id: cat.id || randomUUID(),
+          userId,
+          name: cat.name,
+          colorHex: cat.colorHex,
+          iconName: cat.iconName || null,
+          isSystem: Boolean(cat.isSystem),
+          createdAt: cat.createdAt || new Date().toISOString(),
+          updatedAt: cat.updatedAt || new Date().toISOString(),
+        });
+      }
+    }
+
+    // Вставляем цели
+    if (data.goals && data.goals.length > 0) {
+      for (const g of data.goals) {
+        await db.insert(goalsTable).values({
+          id: g.id || randomUUID(),
+          userId,
+          title: g.title,
+          description: g.description || null,
+          category: g.category || 'self-development',
+          priority: g.priority || 'medium',
+          horizon: g.horizon || 'quarterly',
+          progress: typeof g.progress === 'number' ? g.progress : 0,
+          parentId: g.parentId || null,
+          startDate: g.startDate || null,
+          targetDate: g.targetDate || null,
+          status: g.status || 'backlog',
+          isTodayGoal: Boolean(g.isTodayGoal),
+          estimatedCost: typeof g.estimatedCost === 'number' ? g.estimatedCost : null,
+          currency: g.currency || 'UZS',
+          createdAt: g.createdAt || new Date().toISOString(),
+        });
+      }
+    }
+
+    // Вставляем задачи
+    if (data.tasks && data.tasks.length > 0) {
+      for (const t of data.tasks) {
+        await db.insert(tasksTable).values({
+          id: t.id || randomUUID(),
+          userId,
+          goalId: t.goalId || null,
+          title: t.title,
+          isCompleted: Boolean(t.isCompleted),
+          isDailyFocus: Boolean(t.isDailyFocus),
+          dueDate: t.dueDate || null,
+          completedAt: t.completedAt || null,
+          category: t.category || null,
+          priority: t.priority || 'low',
+          createdAt: t.createdAt || new Date().toISOString(),
+        });
+      }
+    }
+
+    return c.json({ message: 'Резервная копия успешно восстановлена' });
+  } catch (error) {
+    console.error('Backup import error:', error);
+    return c.json({ error: 'Ошибка при восстановлении из резервной копии' }, 500);
+  }
+});
+
+auth.delete('/user/data', async (c) => {
+  const userId = c.req.header('X-User-Id');
+  if (!userId) return c.json({ error: 'Unauthorized' }, 401);
+
+  try {
+    await db.delete(tasksTable).where(eq(tasksTable.userId, userId));
+    await db.delete(goalsTable).where(eq(goalsTable.userId, userId));
+    await db.delete(categoriesTable).where(eq(categoriesTable.userId, userId));
+    return c.json({ message: 'Все данные пользователя успешно удалены' });
+  } catch (error) {
+    console.error('Clear user data error:', error);
+    return c.json({ error: 'Ошибка при удалении данных пользователя' }, 500);
   }
 });
 

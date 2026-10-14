@@ -9,6 +9,7 @@ import { ProgressBar } from '@/components/common/ProgressBar';
 import { toISODateString, formatDate } from '@/utils/date';
 import { CalendarDays, CheckCircle2, Target } from 'lucide-react';
 import { cn } from '@/utils/cn';
+import confetti from 'canvas-confetti';
 
 export function TodayPage() {
   const today = toISODateString(new Date());
@@ -18,17 +19,42 @@ export function TodayPage() {
 
   React.useEffect(() => {
     Promise.all([fetchTasks(), fetchGoals()]);
-  }, []);
+  }, [fetchTasks, fetchGoals]);
 
-  const todaysTasks = tasks.filter((t) => t.dueDate === today);
-  const nonFocusTasks = todaysTasks.filter((t) => !t.isDailyFocus || t.isCompleted);
-
-  // Только корневые цели, отмеченные как "Цель дня"
+  // Только корневые цели, отмеченные как "Цель дня" (Фокус дня)
   const todaysGoals = goals.filter((g) => g.isTodayGoal === true && !g.parentId);
 
-  // Отметить цель выполненной целиком
+  // Рекурсивный поиск всех подцелей
+  const getAllGoalDescendantIds = React.useCallback((goalId: string): string[] => {
+    const children = goals.filter((g) => g.parentId === goalId);
+    return [goalId, ...children.flatMap((c) => getAllGoalDescendantIds(c.id))];
+  }, [goals]);
+
+  // Все ID целей, входящих в фокус дня
+  const todayGoalHierarchyIds = React.useMemo(() => {
+    const ids = new Set<string>();
+    todaysGoals.forEach((g) => {
+      getAllGoalDescendantIds(g.id).forEach((id) => ids.add(id));
+    });
+    return ids;
+  }, [todaysGoals, getAllGoalDescendantIds]);
+
+  // Задачи на сегодня: назначенные на сегодня либо входящие в отмеченные цели дня
+  const todaysTasks = tasks.filter(
+    (t) => t.dueDate === today || (t.goalId && todayGoalHierarchyIds.has(t.goalId))
+  );
+
+  // Отметить цель выполненной целиком с анимацией конфетти
   const handleToggleGoal = async (id: string, currentStatus: string) => {
     const newStatus = currentStatus === 'completed' ? 'in_progress' : 'completed';
+    if (newStatus === 'completed') {
+      confetti({
+        particleCount: 100,
+        spread: 70,
+        origin: { y: 0.6 },
+        colors: ['#6366f1', '#10b981', '#f59e0b'],
+      });
+    }
     await updateGoal(id, { 
       status: newStatus,
       completedAt: newStatus === 'completed' ? new Date().toISOString() : null
@@ -48,9 +74,11 @@ export function TodayPage() {
       </header>
 
       {/* 1. ГЛАВНЫЕ ФОКУСЫ ДНЯ */}
-      <DailyFocus />
+      <div data-tour="today-focus">
+        <DailyFocus />
+      </div>
 
-      {/* 2. ЦЕЛИ НА СЕГОДНЯ */}
+      {/* 2. ЦЕЛИ НА СЕГОДНЯ (ФОКУС ДНЯ) */}
       {todaysGoals.length > 0 ? (
         <section className="mb-8 space-y-4">
           <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-200 flex items-center gap-2">
@@ -60,21 +88,24 @@ export function TodayPage() {
           
           {todaysGoals.map((goal) => {
             const isCompleted = goal.status === 'completed';
-            const goalTasks = todaysTasks.filter(t => t.goalId === goal.id);
-            const hasTasks = goalTasks.length > 0;
+            const descendantIds = getAllGoalDescendantIds(goal.id);
+            // Задачи, находящиеся внутри этой цели или её подцелей
+            const goalTasks = tasks.filter(t => t.goalId && descendantIds.includes(t.goalId));
+            const completedTasksCount = goalTasks.filter(t => t.isCompleted).length;
+            const totalTasksCount = goalTasks.length;
+            const hasTasks = totalTasksCount > 0;
 
             return (
               <div 
                 key={goal.id} 
                 className={cn(
-                  "rounded-xl border transition-all",
+                  "rounded-xl border transition-all p-4",
                   isCompleted 
                     ? "bg-emerald-50/50 border-emerald-200 dark:bg-emerald-900/10 dark:border-emerald-800/50" 
                     : "bg-white border-slate-200 dark:bg-slate-800 dark:border-slate-700"
                 )}
               >
-                {/* Верхняя часть: Чекбокс цели + Название + Процент */}
-                <div className="flex items-center gap-3 p-4">
+                <div className="flex items-center gap-3">
                   <button
                     onClick={() => handleToggleGoal(goal.id, goal.status || '')}
                     className={cn(
@@ -83,45 +114,35 @@ export function TodayPage() {
                         ? "bg-emerald-500 border-emerald-500 text-white" 
                         : "border-slate-300 dark:border-slate-600 hover:border-indigo-500"
                     )}
+                    title={isCompleted ? "Отметить как невыполненную" : "Отметить цель выполненной"}
                   >
                     <CheckCircle2 className="h-4 w-4" />
                   </button>
                   
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between mb-1.5">
                       <h3 className={cn(
                         "font-bold truncate transition-all",
                         isCompleted ? "text-emerald-700 line-through dark:text-emerald-400" : "text-slate-900 dark:text-white"
                       )}>
                         {goal.title}
                       </h3>
-                      <span className="text-xs font-medium text-slate-500 dark:text-slate-400 ml-2">
+                      <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 ml-2">
                         {goal.progress}%
+                      </span>
+                    </div>
+
+                    <ProgressBar progress={goal.progress} size="sm" showLabel={false} />
+
+                    <div className="flex items-center justify-between mt-2 text-xs text-slate-400 dark:text-slate-500">
+                      <span>
+                        {hasTasks 
+                          ? `${completedTasksCount} из ${totalTasksCount} подзадач выполнено` 
+                          : 'Цель без подзадач'}
                       </span>
                     </div>
                   </div>
                 </div>
-
-                {/* Если есть задачи: показываем прогресс-бар и список задач */}
-                {hasTasks ? (
-                  <div className="px-4 pb-4">
-                    <ProgressBar progress={goal.progress} size="sm" showLabel={false} className="mb-3" />
-                    <ul className="space-y-2 pl-9">
-                      {goalTasks.map((task) => (
-                        <li key={task.id}>
-                          <TaskItem task={task} onToggleFocus={() => {}} />
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ) : (
-                  /* Если задач нет: цель выглядит как одна большая задача, готовая к отметке */
-                  <div className="px-4 pb-4 pl-[52px]">
-                    <p className="text-xs text-slate-400 dark:text-slate-500 italic">
-                      Нет подзадач на сегодня. Отметьте цель как выполненную галочкой выше.
-                    </p>
-                  </div>
-                )}
               </div>
             );
           })}
@@ -145,13 +166,13 @@ export function TodayPage() {
 
         <QuickTaskInput />
 
-        {nonFocusTasks.length === 0 ? (
+        {todaysTasks.length === 0 ? (
           <div className="text-center py-12 bg-white rounded-xl border border-dashed border-slate-200 dark:bg-slate-900 dark:border-slate-700">
             <p className="text-slate-500 dark:text-slate-400">На сегодня больше нет задач. Отличная работа!</p>
           </div>
         ) : (
           <ul className="space-y-3">
-            {nonFocusTasks.map((task) => (
+            {todaysTasks.map((task) => (
               <li key={task.id}>
                 <TaskItem task={task} onToggleFocus={useTaskStore.getState().toggleDailyFocus} />
               </li>
