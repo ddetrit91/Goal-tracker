@@ -14,8 +14,9 @@
     "dev:client": "npm run dev --prefix client",
     "server": "npm run dev --prefix server",
     "client": "npm run dev --prefix client",
-    "build": "npm run build --prefix client",
     "build:client": "npm run build --prefix client",
+    "build:api": "esbuild server/src/serverless.ts --bundle --platform=node --target=node20 --format=esm --outfile=api/index.js --external:better-sqlite3",
+    "build": "npm run build:client && npm run build:api",
     "build:server": "npm run build --prefix server",
     "db:push": "npm run db:push --prefix server",
     "db:sync": "npm run db:sync --prefix server",
@@ -23,6 +24,7 @@
   },
   "devDependencies": {
     "concurrently": "^9.1.0",
+    "esbuild": "^0.25.0",
     "vercel": "^64.2.0"
   }
 }
