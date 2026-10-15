@@ -18,7 +18,6 @@ const tursoToken = process.env.TURSO_AUTH_TOKEN || process.env.DATABASE_AUTH_TOK
 async function sync() {
   if (!tursoUrl || tursoUrl.startsWith('file:')) {
     console.error('❌ Ошибка: Переменная TURSO_DATABASE_URL не установлена или указывает на локальный файл.');
-    console.log('Пожалуйста, добавьте TURSO_DATABASE_URL и TURSO_AUTH_TOKEN в файл server/.env');
     process.exit(1);
   }
 
