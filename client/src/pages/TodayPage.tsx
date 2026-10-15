@@ -61,14 +61,42 @@ export function TodayPage() {
     });
   };
 
+  const user = React.useMemo(() => {
+    try {
+      const stored = localStorage.getItem('user');
+      return stored ? JSON.parse(stored) : null;
+    } catch {
+      return null;
+    }
+  }, []);
+
+  const displayName = user?.name || (user?.email ? user.email.split('@')[0] : '');
+
   return (
     <div className="max-w-3xl mx-auto p-4 sm:p-6 pb-28 md:pb-6">
-      <header className="mb-6 sm:mb-8">
-        <div className="flex items-center gap-3 mb-2">
-          <CalendarDays className="h-8 w-8 text-indigo-600 dark:text-indigo-400" />
+      <header className="mb-6 sm:mb-8 space-y-4">
+        <div className="flex items-center gap-3">
+          <CalendarDays className="h-8 w-8 text-indigo-600 dark:text-indigo-400 shrink-0" />
           <div>
-            <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Сегодня</h1>
+            <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
+              {displayName ? `Привет, ${displayName}! 👋` : 'Сегодня'}
+            </h1>
             <p className="text-slate-500 dark:text-slate-400">{formatDate(today, 'EEEE, d MMMM yyyy')}</p>
+          </div>
+        </div>
+
+        {/* Мотивирующий блок с призывом к эффективной цели */}
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-indigo-500/10 via-purple-500/10 to-pink-500/10 border border-indigo-200/50 dark:border-indigo-800/30 p-4 sm:p-5">
+          <div className="flex items-start gap-3.5">
+            <span className="text-2xl select-none shrink-0 mt-0.5">🎯</span>
+            <div>
+              <h2 className="text-sm font-semibold text-indigo-900 dark:text-indigo-200 mb-1">
+                Фокус на эффективную цель
+              </h2>
+              <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
+                Каждая великая победа рождается из ежедневного движения. Выбери главные действия на день, сфокусируйся на результате и доведи задуманное до конца!
+              </p>
+            </div>
           </div>
         </div>
       </header>

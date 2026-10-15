@@ -14,83 +14,100 @@ interface Step {
   route?: string;
 }
 
-const TOUR_STEPS: Step[] = [
-  {
-    id: 'welcome',
-    targetSelector: '[data-tour="logo"]',
-    title: 'Добро пожаловать в Goal Tracker!',
-    location: 'Центр управления целями',
-    howItWorks: 'Персональная система для декомпозиции целей, баланса ключевых сфер жизни и ежедневного движения вперёд.',
-    benefit: 'Ясная картина приоритетов, фокус на главном и уверенность в каждом следующем шаге.',
-  },
-  {
-    id: 'today',
-    targetSelector: '[data-tour="today-focus"]',
-    route: '/today',
-    title: 'Фокус дня и задачи на сегодня',
-    location: 'Вкладка «Сегодня»',
-    howItWorks: 'Здесь находятся главные фокусы дня и задачи. Нажмите звёздочку ⭐ у любой цели на странице «Цели» — и она вместе с подзадачами появится здесь. А при завершении цели отпразднуйте успех салютом конфетти 🎉!',
-    benefit: 'Никакого паралича выбора: вы открываете день с ясными 1–3 ключевыми действиями.',
-  },
-  {
-    id: 'goals',
-    targetSelector: '[data-tour="goals"]',
-    route: '/goals',
-    title: 'Цели и декомпозиция',
-    location: 'Вкладка «Цели»',
-    howItWorks: 'Разбивайте масштабные цели по горизонтам (Год, Квартал, Месяц, Неделя). Добавляйте подцели и задачи: общий прогресс цели автоматически рассчитывается от выполненных подзадач.',
-    benefit: 'Большая мечта перестаёт пугать, превращаясь в логичную и выполнимую лестницу шагов.',
-  },
-  {
-    id: 'deadlines',
-    targetSelector: '[data-tour="deadlines"]',
-    route: '/goals',
-    title: 'Ближайшие сроки выполнения',
-    location: 'Страница «Цели» (над списком)',
-    howItWorks: 'Информативные карточки с обратным отсчётом дней («Срок сегодня!», «Завтра», «Осталось X дн.» или «Просрочено»). Блок автоматически фильтруется по выбранному горизонту и скрывает выполненные цели.',
-    benefit: 'Вы всегда контролируете приближающиеся сроки и держите фокус на самых срочных рубежах.',
-  },
-  {
-    id: 'calendar',
-    targetSelector: '[data-tour="calendar-toggle"]',
-    route: '/goals',
-    title: 'Календарь целей и задач',
-    location: 'Страница «Цели» (кнопка «Календарь»)',
-    howItWorks: 'Переключитесь в режим календаря, чтобы видеть интерактивную сетку месяца со сроками целей, выполненными достижениями и задачами на каждый день с удобной фильтрацией.',
-    benefit: 'Наглядная хронология планов, баланс нагрузки по дням и история побед в одном месте.',
-  },
-  {
-    id: 'vision',
-    targetSelector: '[data-tour="vision-board"]',
-    route: '/vision-board',
-    title: 'Доска визуализации (Мечты)',
-    location: 'Вкладка «Мечты»',
-    howItWorks: 'Создавайте карточки заветных желаний с яркими фотографиями, стоимостью и шкалой накоплений. Любую мечту можно в один клик превратить в практическую цель!',
-    benefit: 'Постоянное визуальное вдохновение и чёткий путь от абстрактной мечты к реальному плану.',
-  },
-  {
-    id: 'analytics',
-    targetSelector: '[data-tour="analytics"]',
-    route: '/analytics',
-    title: 'Колесо сфер жизни и аналитика',
-    location: 'Вкладка «Обзор»',
-    howItWorks: 'Круговая диаграмма баланса сфер (Здоровье, Карьера, Финансы, Семья и др.), процент закрытия целей и журнал побед.',
-    benefit: 'Помогает избегать перекосов, замечать зоны роста и гармонично развиваться во всех сферах.',
-  },
-  {
-    id: 'settings',
-    targetSelector: '[data-tour="settings"]',
-    route: '/settings',
-    title: 'Настройки, экспорт и локальность',
-    location: 'Вкладка «Настройки»',
-    howItWorks: 'Экспорт и импорт базы в JSON, синхронизация с локальной SQLite базой, управление категориями и переключение тёмной темы.',
-    benefit: 'Ваши данные на 100% принадлежат вам. Полная конфиденциальность и безопасность.',
-  },
-];
+function getUserName(): string {
+  try {
+    const userStr = localStorage.getItem('user');
+    if (!userStr) return 'друг';
+    const user = JSON.parse(userStr);
+    if (user?.name && user.name.trim()) return user.name.trim();
+    if (user?.email) return user.email.split('@')[0];
+    return 'друг';
+  } catch {
+    return 'друг';
+  }
+}
+
+function getTourSteps(userName: string): Step[] {
+  return [
+    {
+      id: 'welcome',
+      targetSelector: '[data-tour="logo"]',
+      title: `Рады приветствовать тебя, ${userName}! 🎯`,
+      location: 'Твой персональный центр достижений',
+      howItWorks: 'Каждая великая победа начинается с одного ясного решения и ежедневных действий. Твои мечты заслуживают стать реальностью, а не оставаться в мыслях. Мы создали Goal Tracker, чтобы помочь тебе поставить дерзкие цели, разбить их на понятные шаги и действовать каждый день с максимальной отдачей.',
+      benefit: 'Фокусируйся на главном, побеждай прокрастинацию и достигай масштабных результатов шаг за шагом. Пройди короткий 1-минутный тур, чтобы настроить систему под свой успех!',
+    },
+    {
+      id: 'today',
+      targetSelector: '[data-tour="today-focus"]',
+      route: '/today',
+      title: 'Фокус дня и задачи на сегодня',
+      location: 'Вкладка «Сегодня»',
+      howItWorks: 'Здесь находятся главные фокусы дня и задачи. Нажмите звёздочку ⭐ у любой цели на странице «Цели» — и она вместе с подзадачами появится здесь. А при завершении цели отпразднуйте успех салютом конфетти 🎉!',
+      benefit: 'Никакого паралича выбора: вы открываете день с ясными 1–3 ключевыми действиями.',
+    },
+    {
+      id: 'goals',
+      targetSelector: '[data-tour="goals"]',
+      route: '/goals',
+      title: 'Цели и декомпозиция',
+      location: 'Вкладка «Цели»',
+      howItWorks: 'Разбивайте масштабные цели по горизонтам (Год, Квартал, Месяц, Неделя). Добавляйте подцели и задачи: общий прогресс цели автоматически рассчитывается от выполненных подзадач.',
+      benefit: 'Большая мечта перестаёт пугать, превращаясь в логичную и выполнимую лестницу шагов.',
+    },
+    {
+      id: 'deadlines',
+      targetSelector: '[data-tour="deadlines"]',
+      route: '/goals',
+      title: 'Ближайшие сроки выполнения',
+      location: 'Страница «Цели» (над списком)',
+      howItWorks: 'Информативные карточки с обратным отсчётом дней («Срок сегодня!», «Завтра», «Осталось X дн.» или «Просрочено»). Блок автоматически фильтруется по выбранному горизонту и скрывает выполненные цели.',
+      benefit: 'Вы всегда контролируете приближающиеся сроки и держите фокус на самых срочных рубежах.',
+    },
+    {
+      id: 'calendar',
+      targetSelector: '[data-tour="calendar-toggle"]',
+      route: '/goals',
+      title: 'Календарь целей и задач',
+      location: 'Страница «Цели» (кнопка «Календарь»)',
+      howItWorks: 'Переключитесь в режим календаря, чтобы видеть интерактивную сетку месяца со сроками целей, выполненными достижениями и задачами на каждый день с удобной фильтрацией.',
+      benefit: 'Наглядная хронология планов, баланс нагрузки по дням и история побед в одном месте.',
+    },
+    {
+      id: 'vision',
+      targetSelector: '[data-tour="vision-board"]',
+      route: '/vision-board',
+      title: 'Доска визуализации (Мечты)',
+      location: 'Вкладка «Мечты»',
+      howItWorks: 'Создавайте карточки заветных желаний с яркими фотографиями, стоимостью и шкалой накоплений. Любую мечту можно в один клик превратить в практическую цель!',
+      benefit: 'Постоянное визуальное вдохновение и чёткий путь от абстрактной мечты к реальному плану.',
+    },
+    {
+      id: 'analytics',
+      targetSelector: '[data-tour="analytics"]',
+      route: '/analytics',
+      title: 'Колесо сфер жизни и аналитика',
+      location: 'Вкладка «Обзор»',
+      howItWorks: 'Круговая диаграмма баланса сфер (Здоровье, Карьера, Финансы, Семья и др.), процент закрытия целей и журнал побед.',
+      benefit: 'Помогает избегать перекосов, замечать зоны роста и гармонично развиваться во всех сферах.',
+    },
+    {
+      id: 'settings',
+      targetSelector: '[data-tour="settings"]',
+      route: '/settings',
+      title: 'Настройки, экспорт и безопасность',
+      location: 'Вкладка «Настройки»',
+      howItWorks: 'Экспорт и импорт базы в JSON, управление категориями и переключение тёмной темы.',
+      benefit: 'Ваши данные надёжно сохранены и синхронизированы в облачной базе Turso.',
+    },
+  ];
+}
 
 export function OnboardingTour() {
   const navigate = useNavigate();
   const location = useLocation();
+  const [userName, setUserName] = React.useState(getUserName());
+  const steps = React.useMemo(() => getTourSteps(userName), [userName]);
   const [currentStepIndex, setCurrentStepIndex] = React.useState(0);
   const [isVisible, setIsVisible] = React.useState(false);
   const [tooltipRect, setTooltipRect] = React.useState<{ top: number; left: number; maxHeight: number }>({ 
@@ -99,26 +116,50 @@ export function OnboardingTour() {
     maxHeight: 480 
   });
 
+  // Запуск тура ТОЛЬКО если пользователь авторизован и НЕ на странице логина/регистрации
   React.useEffect(() => {
+    const isAuthPage = ['/login', '/register'].includes(location.pathname);
+    const userStr = localStorage.getItem('user');
+
+    if (!userStr || isAuthPage) {
+      setIsVisible(false);
+      return;
+    }
+
+    setUserName(getUserName());
+
     const hasSeenTour = localStorage.getItem('hasSeenOnboarding');
     if (!hasSeenTour) {
-      setTimeout(() => setIsVisible(true), 800);
+      const timer = setTimeout(() => setIsVisible(true), 600);
+      return () => clearTimeout(timer);
     }
+  }, [location.pathname]);
+
+  // Слушатель для ручного запуска онбординга из настроек или меню
+  React.useEffect(() => {
+    const handleStart = () => {
+      setUserName(getUserName());
+      setCurrentStepIndex(0);
+      setIsVisible(true);
+    };
+
+    window.addEventListener('start-onboarding', handleStart);
+    return () => window.removeEventListener('start-onboarding', handleStart);
   }, []);
 
   // Автоматический переход на нужную страницу тура при смене шага
   React.useEffect(() => {
     if (!isVisible) return;
-    const step = TOUR_STEPS[currentStepIndex];
+    const step = steps[currentStepIndex];
     if (step?.route && location.pathname !== step.route) {
       navigate(step.route);
     }
-  }, [isVisible, currentStepIndex, location.pathname, navigate]);
+  }, [isVisible, currentStepIndex, location.pathname, navigate, steps]);
 
   React.useEffect(() => {
     if (!isVisible) return;
     const updatePosition = () => {
-      const step = TOUR_STEPS[currentStepIndex];
+      const step = steps[currentStepIndex];
       if (!step) return; 
 
       const isMobile = window.innerWidth < 640;
@@ -150,12 +191,10 @@ export function OnboardingTour() {
         const isTargetInBottomHalf = rect.top > (window.innerHeight / 2);
 
         if (isTargetInBottomHalf) {
-          // Элемент внизу: тултип располагается сверху
           const top = topReserved;
           const maxHeight = Math.max(220, window.innerHeight - top - bottomReserved);
           setTooltipRect({ top, left, maxHeight });
         } else {
-          // Элемент вверху: тултип располагается под ним (или выше нижнего навбара)
           const maxAvailableTop = window.innerHeight - bottomReserved - 280;
           const top = Math.max(topReserved, Math.min(rect.bottom + 12, maxAvailableTop));
           const maxHeight = Math.max(220, window.innerHeight - top - bottomReserved);
@@ -192,7 +231,6 @@ export function OnboardingTour() {
         left = rect.left - gap - tooltipWidth;
         top = Math.max(edgeMargin, Math.min(rect.top - 10, window.innerHeight - desiredHeight - edgeMargin));
       } else {
-        // Если справа и слева не помещается — центрируем по горизонтали
         left = Math.max(edgeMargin, Math.min(rect.left, window.innerWidth - tooltipWidth - edgeMargin));
         if (rect.bottom + gap + desiredHeight <= window.innerHeight - edgeMargin) {
           top = rect.bottom + gap;
@@ -220,10 +258,10 @@ export function OnboardingTour() {
       window.removeEventListener('resize', updatePosition);
       window.removeEventListener('scroll', updatePosition, true);
     };
-  }, [isVisible, currentStepIndex, location.pathname]);
+  }, [isVisible, currentStepIndex, location.pathname, steps]);
 
   const isFirst = currentStepIndex === 0;
-  const isLast = currentStepIndex === TOUR_STEPS.length - 1;
+  const isLast = currentStepIndex === steps.length - 1;
 
   const handleNext = React.useCallback(() => {
     if (isLast) {
@@ -254,7 +292,7 @@ export function OnboardingTour() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isVisible, handleSkip, handleNext, handlePrev]);
 
-  const currentStep = TOUR_STEPS[currentStepIndex];
+  const currentStep = steps[currentStepIndex];
 
   if (!isVisible || !currentStep) return null;
 
@@ -293,7 +331,6 @@ export function OnboardingTour() {
               )}
             </mask>
           </defs>
-          {/* <-- АДАПТАЦИЯ: Более глубокое затемнение в темной теме через opacity transition --> */}
           <rect 
             width="100%" 
             height="100%" 
@@ -325,11 +362,9 @@ export function OnboardingTour() {
       <div 
         className={cn(
           "fixed z-[9999] rounded-2xl shadow-2xl border overflow-hidden",
-          "w-[400px] max-w-[calc(100vw-32px)] flex flex-col",
+          "w-[420px] max-w-[calc(100vw-32px)] flex flex-col",
           "animate-in fade-in slide-in-from-bottom-4 duration-300",
-          // Светлая тема
           "bg-white border-slate-200",
-          // Темная тема <-- ДОБАВЛЕНО
           "dark:bg-slate-800 dark:border-slate-700"
         )}
         style={{ 
@@ -338,7 +373,7 @@ export function OnboardingTour() {
           maxHeight: tooltipRect.maxHeight,
         }}
       >
-        {/* Шапка тултипа (градиент остается одинаковым для обеих тем) */}
+        {/* Шапка тултипа */}
         <div className="shrink-0 bg-gradient-to-r from-indigo-600 to-violet-600 px-5 py-3.5 sm:py-4 text-white">
           <div className="flex items-center justify-between">
             <h3 className="text-lg font-bold">{currentStep.title}</h3>
@@ -348,7 +383,7 @@ export function OnboardingTour() {
           </div>
           {/* Индикатор прогресса */}
           <div className="flex gap-1 mt-2.5 sm:mt-3">
-            {TOUR_STEPS.map((_, idx) => (
+            {steps.map((_, idx) => (
               <div 
                 key={idx} 
                 className={cn(
@@ -360,24 +395,21 @@ export function OnboardingTour() {
           </div>
         </div>
 
-        {/* Контент: 3 блока с заметным скроллбаром справа */}
+        {/* Контент: 3 блока */}
         <div className="p-4 sm:p-5 space-y-3 sm:space-y-4 overflow-y-auto flex-1 overscroll-contain tour-scrollbar pr-3 sm:pr-4 mr-0.5">
           <div className="flex gap-3">
             <span className="text-lg shrink-0">📍</span>
             <div>
-              {/* <-- ДОБАВЛЕНО: dark:text-indigo-400 для меток секций --> */}
               <p className="text-xs font-bold text-indigo-600 uppercase tracking-wider mb-0.5 dark:text-indigo-400">Где находится</p>
-              {/* <-- ДОБАВЛЕНО: dark:text-slate-200 для основного текста --> */}
               <p className="text-sm text-slate-700 dark:text-slate-200">{currentStep.location}</p>
             </div>
           </div>
 
-          {/* <-- ДОБАВЛЕНО: dark:border-slate-700 для разделителей --> */}
           <div className="border-t border-slate-100 pt-3 flex gap-3 dark:border-slate-700">
             <span className="text-lg shrink-0">⚙️</span>
             <div>
               <p className="text-xs font-bold text-indigo-600 uppercase tracking-wider mb-0.5 dark:text-indigo-400">Как работает</p>
-              <p className="text-sm text-slate-700 dark:text-slate-200">{currentStep.howItWorks}</p>
+              <p className="text-sm text-slate-700 leading-relaxed dark:text-slate-200">{currentStep.howItWorks}</p>
             </div>
           </div>
 
@@ -385,13 +417,12 @@ export function OnboardingTour() {
             <span className="text-lg shrink-0">💎</span>
             <div>
               <p className="text-xs font-bold text-indigo-600 uppercase tracking-wider mb-0.5 dark:text-indigo-400">Зачем нужно & польза</p>
-              <p className="text-sm text-slate-700 dark:text-slate-200">{currentStep.benefit}</p>
+              <p className="text-sm text-slate-700 leading-relaxed dark:text-slate-200">{currentStep.benefit}</p>
             </div>
           </div>
         </div>
 
         {/* Навигация */}
-        {/* <-- ДОБАВЛЕНО: dark:bg-slate-900/50 и dark:border-slate-700 для футера --> */}
         <div className="shrink-0 px-4 sm:px-5 py-3 sm:py-4 bg-slate-50 border-t border-slate-200 flex items-center justify-between dark:bg-slate-900/50 dark:border-slate-700">
           <button 
             onClick={handlePrev}

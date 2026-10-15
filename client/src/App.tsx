@@ -60,7 +60,7 @@ function AppContent() {
       
       {/* УСЛОВНЫЙ ОТСТУП: Учитываем мобильный верхний хедер и нижнюю панель навигации */}
       <main className={!isAuthPage ? "pt-16 pb-24 md:pt-6 md:pb-6 md:pl-72" : ""}>
-        <OnboardingTour />
+        {!isAuthPage && Boolean(localStorage.getItem('user')) && <OnboardingTour />}
         <Routes>
           {/* Публичные маршруты */}
           <Route path="/login" element={<LoginPage />} />
