@@ -12,12 +12,21 @@ dist/
 dist-ssr/
 *.local
 .vite/
+*.tsbuildinfo
+client/vite.config.js
 
 # Environment files
 .env
 .env.*
 .env*.local
 !.env.example
+
+# Database & Vercel
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+.vercel
 
 # Secrets and private keys
 *.pem

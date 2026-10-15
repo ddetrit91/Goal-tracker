@@ -15,7 +15,10 @@
     "client": "npm run dev --prefix client",
     "build": "npm run build --prefix client",
     "build:client": "npm run build --prefix client",
-    "build:server": "npm run build --prefix server"
+    "build:server": "npm run build --prefix server",
+    "db:push": "npm run db:push --prefix server",
+    "db:sync": "npm run db:sync --prefix server",
+    "db:migrate": "npm run db:migrate --prefix server"
   },
   "devDependencies": {
     "concurrently": "^9.1.0"

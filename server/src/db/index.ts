@@ -1,12 +1,32 @@
-import Database from 'better-sqlite3';
-import { drizzle } from 'drizzle-orm/better-sqlite3';
+import { createClient } from '@libsql/client';
+import { drizzle } from 'drizzle-orm/libsql';
 import * as schema from './schema';
 import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
 dotenv.config();
 
-const dbPath = process.env.DATABASE_URL || './local.db';
-const sqlite = new Database(dbPath);
-sqlite.pragma('journal_mode = WAL');
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const defaultLocalDbPath = `file:${path.resolve(__dirname, '../../local.db').replace(/\\/g, '/')}`;
 
-export const db = drizzle(sqlite, { schema });
+const rawUrl = process.env.TURSO_DATABASE_URL || process.env.DATABASE_URL;
+let url = rawUrl;
+
+if (!url) {
+  url = defaultLocalDbPath;
+} else if (url.startsWith('file:') && !path.isAbsolute(url.slice(5))) {
+  url = `file:${path.resolve(__dirname, '../../', url.slice(5)).replace(/\\/g, '/')}`;
+} else if (url.startsWith('./') || url.startsWith('../')) {
+  url = `file:${path.resolve(__dirname, '../../', url).replace(/\\/g, '/')}`;
+}
+
+const authToken = process.env.TURSO_AUTH_TOKEN || process.env.DATABASE_AUTH_TOKEN;
+
+export const client = createClient({
+  url,
+  authToken,
+});
+
+export const db = drizzle(client, { schema });

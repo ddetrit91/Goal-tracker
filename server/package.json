@@ -8,12 +8,15 @@
     "start": "tsx src/index.ts",
     "build": "tsc",
     "db:generate": "drizzle-kit generate",
+    "db:push": "drizzle-kit push",
+    "db:sync": "tsx src/db/sync-to-turso.ts",
     "db:migrate": "tsx src/db/migrate.ts",
     "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
     "@hono/node-server": "^1.13.7",
     "@hono/zod-validator": "^0.4.2",
+    "@libsql/client": "^0.18.0",
     "bcryptjs": "^2.4.3",
     "better-sqlite3": "^11.6.0",
     "dotenv": "^16.4.7",
