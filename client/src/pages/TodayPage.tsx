@@ -85,19 +85,24 @@ export function TodayPage() {
           </div>
         </div>
 
-        {/* Мотивирующий блок с призывом к эффективной цели */}
-        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-indigo-500/10 via-purple-500/10 to-pink-500/10 border border-indigo-200/50 dark:border-indigo-800/30 p-4 sm:p-5">
-          <div className="flex items-start gap-3.5">
-            <span className="text-2xl select-none shrink-0 mt-0.5">🎯</span>
-            <div>
-              <h2 className="text-sm font-semibold text-indigo-900 dark:text-indigo-200 mb-1">
-                Фокус на эффективную цель
-              </h2>
-              <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
-                Каждая великая победа рождается из ежедневного движения. Выбери главные действия на день, сфокусируйся на результате и доведи задуманное до конца!
-              </p>
+        {/* Блок фокуса на эффективную цель в едином стиле с "Главные фокусы дня" */}
+        <div className={cn(
+          "rounded-xl border p-5 transition-colors",
+          "bg-slate-100 border-slate-200",
+          "dark:bg-slate-800 dark:border-slate-700"
+        )}>
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <Target className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
+              <h2 className="text-lg font-bold text-slate-900 dark:text-white">Фокус на эффективную цель</h2>
             </div>
+            <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-indigo-100 text-indigo-800 border border-indigo-200 dark:bg-indigo-900/40 dark:text-indigo-300 dark:border-indigo-800">
+              Мотивация
+            </span>
           </div>
+          <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
+            Каждая великая победа рождается из ежедневного движения. Выбери главные действия на день, сфокусируйся на результате и доведи задуманное до конца!
+          </p>
         </div>
       </header>
 
