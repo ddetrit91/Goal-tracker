@@ -58,8 +58,8 @@ function AppContent() {
       {/* УСЛОВНЫЙ РЕНДЕРИНГ: Показываем Navbar только если это НЕ страница авторизации */}
       {!isAuthPage && <Navbar />}
       
-      {/* УСЛОВНЫЙ ОТСТУП: Добавляем md:pl-72 только если есть Navbar */}
-      <main className={!isAuthPage ? "md:pl-72 pt-6" : ""}>
+      {/* УСЛОВНЫЙ ОТСТУП: Учитываем мобильный верхний хедер и нижнюю панель навигации */}
+      <main className={!isAuthPage ? "pt-16 pb-24 md:pt-6 md:pb-6 md:pl-72" : ""}>
         <OnboardingTour />
         <Routes>
           {/* Публичные маршруты */}

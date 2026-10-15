@@ -3,6 +3,7 @@ import * as React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Target, Eye, EyeOff, Loader2 } from 'lucide-react';
 import { cn } from '@/utils/cn';
+import { API_BASE } from '@/config/api';
 
 export function LoginPage() {
   const navigate = useNavigate();
@@ -18,7 +19,7 @@ export function LoginPage() {
     setError('');
 
     try {
-      const res = await fetch('http://localhost:3000/api/auth/login', {
+      const res = await fetch(`${API_BASE}/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),

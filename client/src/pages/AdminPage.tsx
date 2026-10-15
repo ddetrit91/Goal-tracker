@@ -151,50 +151,50 @@ export function AdminPage() {
   ] as const;
 
   return (
-    <div className="max-w-7xl mx-auto p-6 pb-24 md:pb-6">
+    <div className="max-w-7xl mx-auto p-4 sm:p-6 pb-28 md:pb-6">
       {/* Заголовок */}
-      <header className="mb-8 flex items-center justify-between">
+      <header className="mb-6 sm:mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-3">
-            <Settings className="h-8 w-8 text-indigo-600 dark:text-indigo-400" />
-            Панель администратора
+          <h1 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2.5 sm:gap-3">
+            <Settings className="h-6 w-6 sm:h-8 sm:w-8 text-indigo-600 dark:text-indigo-400 shrink-0" />
+            <span>Панель администратора</span>
           </h1>
-          <p className="text-slate-500 dark:text-slate-400 mt-1">Управление пользователями и системными настройками</p>
+          <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">Управление пользователями и системными настройками</p>
         </div>
         
         {activeTab === 'users' && (
           <button
             onClick={() => setCreateUserModalOpen(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors font-medium"
+            className="flex items-center justify-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors font-medium text-sm w-full sm:w-auto shrink-0 shadow-sm"
           >
             <Plus className="h-4 w-4" />
-            Создать пользователя
+            <span>Создать пользователя</span>
           </button>
         )}
       </header>
 
       {/* Вкладки */}
-      <div className="flex gap-2 mb-6 border-b border-slate-200 dark:border-slate-700 overflow-x-auto">
+      <div className="flex gap-1.5 sm:gap-2 mb-6 border-b border-slate-200 dark:border-slate-700 overflow-x-auto scrollbar-none pb-0.5">
         {tabs.map((tab) => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
             className={cn(
-              "px-4 py-2.5 text-sm font-medium flex items-center gap-2 whitespace-nowrap transition-colors border-b-2",
+              "px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-medium flex items-center gap-1.5 sm:gap-2 whitespace-nowrap transition-colors border-b-2 shrink-0",
               activeTab === tab.id
                 ? "border-indigo-600 text-indigo-600 dark:border-indigo-400 dark:text-indigo-400"
                 : "border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
             )}
           >
-            <tab.icon className="h-4 w-4" />
-            {tab.label}
+            <tab.icon className="h-4 w-4 shrink-0" />
+            <span>{tab.label}</span>
           </button>
         ))}
       </div>
 
       {/* Вкладка: Пользователи */}
       {activeTab === 'users' && (
-        <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+        <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden shadow-sm">
           {loading ? (
             <div className="p-12 text-center text-slate-500 dark:text-slate-400">Загрузка...</div>
           ) : error ? (
@@ -202,69 +202,118 @@ export function AdminPage() {
           ) : users.length === 0 ? (
             <div className="p-12 text-center text-slate-500 dark:text-slate-400">Нет пользователей</div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm text-left">
-                {/* ИСПРАВЛЕНО: Заголовки теперь четче видны в светлой теме (text-slate-600) */}
-                <thead className="bg-slate-50 dark:bg-slate-900/80 text-slate-600 dark:text-slate-400 uppercase text-xs tracking-wider">
-                  <tr>
-                    <th className="px-6 py-4 font-semibold">Имя</th>
-                    <th className="px-6 py-4 font-semibold">Email</th>
-                    <th className="px-6 py-4 font-semibold">Роль</th>
-                    <th className="px-6 py-4 font-semibold">Записей</th>
-                    <th className="px-6 py-4 font-semibold">Дата регистрации</th>
-                    <th className="px-6 py-4 font-semibold">Последняя активность</th>
-                    <th className="px-6 py-4 font-semibold text-right">Действия</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
-                  {users.map((user) => (
-                    <tr key={user.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
-                      <td className="px-6 py-4 font-medium text-slate-900 dark:text-white">{user.name || '—'}</td>
-                      
-                      {/* ИСПРАВЛЕНО: Email теперь виден в светлой теме (text-slate-600) */}
-                      <td className="px-6 py-4 text-slate-600 dark:text-slate-300">{user.email}</td>
-                      
-                      <td className="px-6 py-4">
-                        <span className={cn(
-                          "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border",
-                          user.role === 'admin' 
-                            ? "bg-purple-100 text-purple-800 border-purple-200 dark:bg-purple-900/40 dark:text-purple-300 dark:border-purple-700/50" 
-                            : "bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-700/80 dark:text-slate-200 dark:border-slate-600"
-                        )}>
-                          {user.role}
-                        </span>
-                      </td>
-                      
-                      {/* ИСПРАВЛЕНО: Число целей теперь темно-серым в светлой теме (text-slate-900) */}
-                      <td className="px-6 py-4 text-slate-900 dark:text-slate-100 font-mono font-bold">{user.goalCount}</td>
-                      
-                      {/* ИСПРАВЛЕНО: Даты теперь видны в светлой теме (text-slate-600) */}
-                      <td className="px-6 py-4 text-slate-600 dark:text-slate-300">
-                        {new Date(user.createdAt).toLocaleString('ru-RU')}
-                      </td>
-                      
-                      <td className="px-6 py-4 text-slate-600 dark:text-slate-300">
-                        {user.lastLogin ? new Date(user.lastLogin).toLocaleString('ru-RU') : '—'}
-                      </td>
-                      
-                      <td className="px-6 py-4 text-right">
-                        <div className="flex justify-end gap-1">
-                          <button onClick={() => setRoleModalUser(user)} className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:text-indigo-400 dark:hover:bg-indigo-900/20 rounded-lg transition-colors" title="Изменить роль">
-                            <UserCog className="h-4 w-4" />
-                          </button>
-                          <button onClick={() => setResetPasswordUser(user)} className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 dark:hover:text-amber-400 dark:hover:bg-amber-900/20 rounded-lg transition-colors" title="Сбросить пароль">
-                            <Key className="h-4 w-4" />
-                          </button>
-                          <button onClick={() => handleDeleteUser(user.id)} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:text-red-400 dark:hover:bg-red-900/20 rounded-lg transition-colors" title="Удалить">
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                        </div>
-                      </td>
+            <>
+              {/* МОБИЛЬНЫЙ ВИД: Карточки пользователей */}
+              <div className="md:hidden divide-y divide-slate-100 dark:divide-slate-700/60">
+                {users.map((user) => (
+                  <div key={user.id} className="p-4 space-y-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <h4 className="font-semibold text-slate-900 dark:text-white truncate">
+                          {user.name || 'Без имени'}
+                        </h4>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 truncate">{user.email}</p>
+                      </div>
+                      <span className={cn(
+                        "inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium border shrink-0",
+                        user.role === 'admin' 
+                          ? "bg-purple-100 text-purple-800 border-purple-200 dark:bg-purple-900/40 dark:text-purple-300 dark:border-purple-700/50" 
+                          : "bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-700/80 dark:text-slate-200 dark:border-slate-600"
+                      )}>
+                        {user.role}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-900/50 p-2.5 rounded-lg">
+                      <div>
+                        <span>Целей: </span>
+                        <strong className="text-slate-900 dark:text-white font-mono">{user.goalCount}</strong>
+                      </div>
+                      <div>
+                        <span>Рег: </span>
+                        <span>{new Date(user.createdAt).toLocaleDateString('ru-RU')}</span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-end gap-2 pt-1 border-t border-slate-100 dark:border-slate-700/50">
+                      <button
+                        onClick={() => setRoleModalUser(user)}
+                        className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 rounded-lg hover:bg-indigo-100 transition-colors"
+                      >
+                        <UserCog className="h-3.5 w-3.5" /> Роль
+                      </button>
+                      <button
+                        onClick={() => setResetPasswordUser(user)}
+                        className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/30 rounded-lg hover:bg-amber-100 transition-colors"
+                      >
+                        <Key className="h-3.5 w-3.5" /> Пароль
+                      </button>
+                      <button
+                        onClick={() => handleDeleteUser(user.id)}
+                        className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/30 rounded-lg hover:bg-red-100 transition-colors"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" /> Удалить
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* ДЕСКТОПНЫЙ ВИД: Таблица */}
+              <div className="hidden md:block overflow-x-auto">
+                <table className="w-full text-sm text-left">
+                  <thead className="bg-slate-50 dark:bg-slate-900/80 text-slate-600 dark:text-slate-400 uppercase text-xs tracking-wider">
+                    <tr>
+                      <th className="px-6 py-4 font-semibold">Имя</th>
+                      <th className="px-6 py-4 font-semibold">Email</th>
+                      <th className="px-6 py-4 font-semibold">Роль</th>
+                      <th className="px-6 py-4 font-semibold">Записей</th>
+                      <th className="px-6 py-4 font-semibold">Дата регистрации</th>
+                      <th className="px-6 py-4 font-semibold">Последняя активность</th>
+                      <th className="px-6 py-4 font-semibold text-right">Действия</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
+                    {users.map((user) => (
+                      <tr key={user.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
+                        <td className="px-6 py-4 font-medium text-slate-900 dark:text-white">{user.name || '—'}</td>
+                        <td className="px-6 py-4 text-slate-600 dark:text-slate-300">{user.email}</td>
+                        <td className="px-6 py-4">
+                          <span className={cn(
+                            "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border",
+                            user.role === 'admin' 
+                              ? "bg-purple-100 text-purple-800 border-purple-200 dark:bg-purple-900/40 dark:text-purple-300 dark:border-purple-700/50" 
+                              : "bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-700/80 dark:text-slate-200 dark:border-slate-600"
+                          )}>
+                            {user.role}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-slate-900 dark:text-slate-100 font-mono font-bold">{user.goalCount}</td>
+                        <td className="px-6 py-4 text-slate-600 dark:text-slate-300">
+                          {new Date(user.createdAt).toLocaleString('ru-RU')}
+                        </td>
+                        <td className="px-6 py-4 text-slate-600 dark:text-slate-300">
+                          {user.lastLogin ? new Date(user.lastLogin).toLocaleString('ru-RU') : '—'}
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                          <div className="flex justify-end gap-1">
+                            <button onClick={() => setRoleModalUser(user)} className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:text-indigo-400 dark:hover:bg-indigo-900/20 rounded-lg transition-colors" title="Изменить роль">
+                              <UserCog className="h-4 w-4" />
+                            </button>
+                            <button onClick={() => setResetPasswordUser(user)} className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 dark:hover:text-amber-400 dark:hover:bg-amber-900/20 rounded-lg transition-colors" title="Сбросить пароль">
+                              <Key className="h-4 w-4" />
+                            </button>
+                            <button onClick={() => handleDeleteUser(user.id)} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:text-red-400 dark:hover:bg-red-900/20 rounded-lg transition-colors" title="Удалить">
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
           )}
         </div>
       )}
@@ -295,42 +344,48 @@ export function AdminPage() {
                 Регистрации по дням
               </h3>
               <div className="space-y-3">
-                {stats?.registrationsByDay.map((item, i) => (
-                  <div key={i} className="flex items-center gap-3">
-                    <span className="text-sm text-slate-500 dark:text-slate-400 w-24">{new Date(item.date).toLocaleDateString('ru-RU')}</span>
-                    <div className="flex-1 h-2 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
-                      <div 
-                        className="h-full bg-indigo-500 rounded-full" 
-                        style={{ width: `${Math.min((item.count / Math.max(...(stats.registrationsByDay.map(r => r.count) || [1]))) * 100, 100)}%` }}
-                      />
+                {(() => {
+                  const maxRegs = Math.max(1, ...(stats?.registrationsByDay?.map(r => r.count) || [1]));
+                  return stats?.registrationsByDay.map((item, i) => (
+                    <div key={i} className="flex items-center gap-2 sm:gap-3 text-xs sm:text-sm">
+                      <span className="text-slate-500 dark:text-slate-400 w-20 sm:w-24 shrink-0">{new Date(item.date).toLocaleDateString('ru-RU')}</span>
+                      <div className="flex-1 h-2 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
+                        <div 
+                          className="h-full bg-indigo-500 rounded-full" 
+                          style={{ width: `${Math.min((item.count / maxRegs) * 100, 100)}%` }}
+                        />
+                      </div>
+                      <span className="font-bold text-slate-900 dark:text-white w-7 sm:w-8 text-right shrink-0">{item.count}</span>
                     </div>
-                    <span className="text-sm font-bold text-slate-900 dark:text-white w-8 text-right">{item.count}</span>
-                  </div>
-                ))}
+                  ));
+                })()}
                 {(!stats?.registrationsByDay || stats.registrationsByDay.length === 0) && (
                   <p className="text-sm text-slate-400 italic">Нет данных за последние дни</p>
                 )}
               </div>
             </div>
 
-            <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-6">
-              <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
-                <Activity className="h-5 w-5 text-emerald-500" />
-                Запросы по дням
+            <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4 sm:p-6 shadow-sm">
+              <h3 className="text-base sm:text-lg font-semibold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
+                <Activity className="h-5 w-5 text-emerald-500 shrink-0" />
+                <span>Запросы по дням</span>
               </h3>
               <div className="space-y-3">
-                {stats?.requestsByDay.map((item, i) => (
-                  <div key={i} className="flex items-center gap-3">
-                    <span className="text-sm text-slate-500 dark:text-slate-400 w-24">{new Date(item.date).toLocaleDateString('ru-RU')}</span>
-                    <div className="flex-1 h-2 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
-                      <div 
-                        className="h-full bg-emerald-500 rounded-full" 
-                        style={{ width: `${Math.min((item.count / Math.max(...(stats.requestsByDay.map(r => r.count) || [1]))) * 100, 100)}%` }}
-                      />
+                {(() => {
+                  const maxRequests = Math.max(1, ...(stats?.requestsByDay?.map(r => r.count) || [1]));
+                  return stats?.requestsByDay.map((item, i) => (
+                    <div key={i} className="flex items-center gap-2 sm:gap-3 text-xs sm:text-sm">
+                      <span className="text-slate-500 dark:text-slate-400 w-20 sm:w-24 shrink-0">{new Date(item.date).toLocaleDateString('ru-RU')}</span>
+                      <div className="flex-1 h-2 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
+                        <div 
+                          className="h-full bg-emerald-500 rounded-full" 
+                          style={{ width: `${Math.min((item.count / maxRequests) * 100, 100)}%` }}
+                        />
+                      </div>
+                      <span className="font-bold text-slate-900 dark:text-white w-7 sm:w-8 text-right shrink-0">{item.count}</span>
                     </div>
-                    <span className="text-sm font-bold text-slate-900 dark:text-white w-8 text-right">{item.count}</span>
-                  </div>
-                ))}
+                  ));
+                })()}
                 {(!stats?.requestsByDay || stats.requestsByDay.length === 0) && (
                   <p className="text-sm text-slate-400 italic">Нет данных за последние дни</p>
                 )}
@@ -342,24 +397,55 @@ export function AdminPage() {
 
       {/* Вкладка: Активность */}
       {activeTab === 'activity' && (
-        <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
-          <div className="p-6 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center">
-            <h3 className="text-lg font-semibold text-slate-900 dark:text-white flex items-center gap-2">
-              <LogIn className="h-5 w-5 text-blue-500" /> Журнал входов в систему
+        <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden shadow-sm">
+          <div className="p-4 sm:p-6 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center gap-2">
+            <h3 className="text-base sm:text-lg font-semibold text-slate-900 dark:text-white flex items-center gap-2 truncate">
+              <LogIn className="h-5 w-5 text-blue-500 shrink-0" /> 
+              <span>Журнал входов</span>
             </h3>
-            <span className="text-xs text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-700/50 px-2 py-1 rounded-full border border-slate-200 dark:border-slate-600">
-              Всего записей: {activityLogs.length}
+            <span className="text-xs text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-700/50 px-2.5 py-1 rounded-full border border-slate-200 dark:border-slate-600 whitespace-nowrap shrink-0">
+              Записей: {activityLogs.length}
             </span>
           </div>
-          <div className="overflow-x-auto">
+
+          {/* МОБИЛЬНЫЙ ВИД: Карточки логов */}
+          <div className="md:hidden divide-y divide-slate-100 dark:divide-slate-700/60">
+            {activityLogs.length > 0 ? activityLogs.map((log, index) => (
+              <div key={index} className="p-4 space-y-2">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <h4 className="font-semibold text-slate-900 dark:text-white truncate">
+                      {log.userName || 'Неизвестный'}
+                    </h4>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 truncate">{log.userEmail}</p>
+                  </div>
+                  <span className={cn(
+                    "inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium border shrink-0",
+                    log.userRole === 'admin' 
+                      ? "bg-purple-100 text-purple-800 border-purple-200 dark:bg-purple-900/40 dark:text-purple-300 dark:border-purple-700/50" 
+                      : "bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-700/80 dark:text-slate-200 dark:border-slate-600"
+                  )}>
+                    {log.userRole}
+                  </span>
+                </div>
+                <div className="text-xs text-slate-400 dark:text-slate-500 flex items-center justify-between pt-1">
+                  <span>Вход в систему</span>
+                  <span>{new Date(log.lastLogin).toLocaleString('ru-RU')}</span>
+                </div>
+              </div>
+            )) : (
+              <div className="p-8 text-center text-slate-400 text-sm">Нет данных о входах.</div>
+            )}
+          </div>
+
+          {/* ДЕСКТОПНЫЙ ВИД: Таблица логов */}
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-sm text-left">
-              {/* ИСПРАВЛЕНО: Заголовки четче в светлой теме */}
               <thead className="bg-slate-50 dark:bg-slate-900/80 text-slate-600 dark:text-slate-400 uppercase text-xs tracking-wider">
                 <tr>
                   <th className="px-6 py-4 font-semibold">Пользователь</th>
                   <th className="px-6 py-4 font-semibold">Email</th>
                   <th className="px-6 py-4 font-semibold">Роль</th>
-                  <th className="px-6 py-4 font-semibold">Запросов</th>
                   <th className="px-6 py-4 font-semibold">Последняя активность</th>
                 </tr>
               </thead>
@@ -367,10 +453,7 @@ export function AdminPage() {
                 {activityLogs.length > 0 ? activityLogs.map((log, index) => (
                   <tr key={index} className="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
                     <td className="px-6 py-4 font-medium text-slate-900 dark:text-white">{log.userName || 'Unknown'}</td>
-                    
-                    {/* ИСПРАВЛЕНО: Email виден в светлой теме */}
                     <td className="px-6 py-4 text-slate-600 dark:text-slate-300">{log.userEmail}</td>
-                    
                     <td className="px-6 py-4">
                       <span className={cn(
                         "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border",
@@ -381,15 +464,10 @@ export function AdminPage() {
                         {log.userRole}
                       </span>
                     </td>
-                    
-                    {/* ИСПРАВЛЕНО: Число запросов темно-серым в светлой теме */}
-                    <td className="px-6 py-4 text-slate-900 dark:text-slate-100 font-mono font-bold">{log.requestCount}</td>
-                    
-                    {/* ИСПРАВЛЕНО: Дата видна в светлой теме */}
                     <td className="px-6 py-4 text-slate-600 dark:text-slate-300">{new Date(log.lastLogin).toLocaleString('ru-RU')}</td>
                   </tr>
                 )) : (
-                  <tr><td colSpan={5} className="px-6 py-8 text-center text-slate-500 dark:text-slate-400">Нет данных о входах.</td></tr>
+                  <tr><td colSpan={4} className="px-6 py-8 text-center text-slate-500 dark:text-slate-400">Нет данных о входах.</td></tr>
                 )}
               </tbody>
             </table>
@@ -416,7 +494,7 @@ export function AdminPage() {
 
       {/* МОДАЛКА: Создание пользователя */}
       {createUserModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
           <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-md p-6">
             <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-4">Создать пользователя</h3>
             <div className="space-y-4">
@@ -476,7 +554,7 @@ export function AdminPage() {
 
       {/* МОДАЛКА: Изменение роли */}
       {roleModalUser && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
           <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-md p-6">
             <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-4">Изменить роль</h3>
             <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">
@@ -501,7 +579,7 @@ export function AdminPage() {
 
       {/* МОДАЛКА: Сброс пароля */}
       {resetPasswordUser && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
           <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-md p-6">
             <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-4">Установить новый пароль</h3>
             <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">
@@ -532,7 +610,7 @@ export function AdminPage() {
       {/* Toast уведомления */}
       {toast && (
         <div className={cn(
-          "fixed bottom-6 right-6 px-4 py-3 rounded-lg shadow-lg flex items-center gap-2 animate-in slide-in-from-bottom-4 duration-300 z-50",
+          "fixed bottom-20 md:bottom-6 right-4 sm:right-6 px-4 py-3 rounded-lg shadow-lg flex items-center gap-2 animate-in slide-in-from-bottom-4 duration-300 z-[70]",
           toast.type === 'success' ? "bg-emerald-500 text-white" : "bg-red-500 text-white"
         )}>
           {toast.type === 'success' ? <CheckCircle2 className="h-5 w-5" /> : <XCircle className="h-5 w-5" />}

@@ -2,6 +2,7 @@
 import * as React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, Loader2 } from 'lucide-react';
+import { SERVER_URL } from '@/config/api';
 
 interface AuthFormProps {
   type: 'login' | 'register';
@@ -27,7 +28,7 @@ export function AuthForm({ type }: AuthFormProps) {
 
     try {
       const endpoint = type === 'register' ? '/api/auth/register' : '/api/auth/login';
-      const res = await fetch(`http://localhost:3000${endpoint}`, {
+      const res = await fetch(`${SERVER_URL}${endpoint}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),

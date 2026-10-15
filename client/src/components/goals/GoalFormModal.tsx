@@ -296,9 +296,9 @@ export function GoalFormModal({
           </div>
         </div>
 
-        <div className="flex justify-end gap-3 pt-4 border-t border-slate-100 mt-6 dark:border-slate-700">
-          <Button type="button" variant="ghost" onClick={onClose}>Отмена</Button>
-          <Button type="submit" isLoading={isLoading}>{isEditing ? 'Сохранить изменения' : 'Создать цель'}</Button>
+        <div className="flex flex-col-reverse sm:flex-row justify-end gap-2.5 sm:gap-3 pt-4 border-t border-slate-100 mt-6 dark:border-slate-700">
+          <Button type="button" variant="ghost" onClick={onClose} className="w-full sm:w-auto">Отмена</Button>
+          <Button type="submit" isLoading={isLoading} className="w-full sm:w-auto">{isEditing ? 'Сохранить изменения' : 'Создать цель'}</Button>
         </div>
       </form>
     </Modal>

@@ -140,7 +140,7 @@ auth.post('/goals', zValidator('json', createGoalSchema), async (c) => {
       currency: body.currency || 'UZS',
       progress: 0,
       isTodayGoal: body.isTodayGoal || false,
-    }).returning();
+    } as any).returning();
 
     return c.json((result as any[])[0], 201);
   } catch (error) {
@@ -169,8 +169,8 @@ async function recalculateGoalHierarchy(goalId: string, userId: string): Promise
   let newProgress = 0;
 
   if (totalItems > 0) {
-    const tasksProgress = childTasks.reduce((sum, t) => sum + (t.isCompleted ? 100 : 0), 0);
-    const goalsProgress = childGoals.reduce((sum, g) => {
+    const tasksProgress = childTasks.reduce((sum: number, t: any) => sum + (t.isCompleted ? 100 : 0), 0);
+    const goalsProgress = childGoals.reduce((sum: number, g: any) => {
       if (g.status === 'completed') return sum + 100;
       return sum + Math.min(100, Math.max(0, g.progress ?? 0));
     }, 0);
@@ -181,7 +181,7 @@ async function recalculateGoalHierarchy(goalId: string, userId: string): Promise
 
   if (goal.progress !== newProgress) {
     await db.update(goalsTable)
-      .set({ progress: newProgress })
+      .set({ progress: newProgress } as any)
       .where(eq(goalsTable.id, goalId));
   }
 
@@ -270,7 +270,7 @@ auth.post('/tasks', zValidator('json', createTaskSchema), async (c) => {
     const body = c.req.valid('json');
     const result = await db.insert(tasksTable).values({
       id: randomUUID(), userId, ...body, isCompleted: false, isDailyFocus: false
-    }).returning();
+    } as any).returning();
     const newTask = (result as any[])[0];
 
     if (newTask.goalId) {
@@ -371,7 +371,7 @@ auth.post('/categories', zValidator('json', z.object({
       userId,
       ...body,
       isSystem: false
-    }).returning();
+    } as any).returning();
 
     return c.json((result as any[])[0], 201);
   } catch (error) {
@@ -473,7 +473,7 @@ auth.post('/backup', async (c) => {
           isSystem: Boolean(cat.isSystem),
           createdAt: cat.createdAt || new Date().toISOString(),
           updatedAt: cat.updatedAt || new Date().toISOString(),
-        });
+        } as any);
       }
     }
 
@@ -497,7 +497,7 @@ auth.post('/backup', async (c) => {
           estimatedCost: typeof g.estimatedCost === 'number' ? g.estimatedCost : null,
           currency: g.currency || 'UZS',
           createdAt: g.createdAt || new Date().toISOString(),
-        });
+        } as any);
       }
     }
 
@@ -516,7 +516,7 @@ auth.post('/backup', async (c) => {
           category: t.category || null,
           priority: t.priority || 'low',
           createdAt: t.createdAt || new Date().toISOString(),
-        });
+        } as any);
       }
     }
 

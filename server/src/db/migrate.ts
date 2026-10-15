@@ -1,4 +1,3 @@
-// client/src/db/migrate.ts
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator';
 import { db } from './index';
 import { fileURLToPath } from 'url';
@@ -9,7 +8,6 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const migrationsFolder = path.join(__dirname, '../../drizzle');
 
-// Проверяем существование папки и файлов
 if (fs.existsSync(migrationsFolder)) {
   const files = fs.readdirSync(migrationsFolder).filter(f => f.endsWith('.sql'));
   

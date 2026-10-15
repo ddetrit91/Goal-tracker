@@ -63,8 +63,8 @@ export function AnalyticsPage() {
   });
 
   return (
-    <div className="max-w-4xl mx-auto p-6 pb-24 md:pb-6">
-      <header className="mb-8">
+    <div className="max-w-4xl mx-auto p-4 sm:p-6 pb-28 md:pb-6">
+      <header className="mb-6 sm:mb-8">
         <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Обзор и Аналитика</h1>
         <p className="text-slate-500 mt-1 dark:text-slate-400">Баланс сфер жизни и журнал побед</p>
       </header>

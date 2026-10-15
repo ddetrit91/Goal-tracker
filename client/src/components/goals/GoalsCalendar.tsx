@@ -86,28 +86,28 @@ export function GoalsCalendar({ onSelectGoal }: GoalsCalendarProps) {
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
       {/* ПАНЕЛЬ УПРАВЛЕНИЯ КАЛЕНДАРЕМ */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white dark:bg-slate-800 p-3 sm:p-4 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
         <div className="flex items-center gap-3">
-          <div className="p-2 rounded-lg bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400">
+          <div className="p-2 rounded-lg bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 shrink-0">
             <CalendarIcon className="h-5 w-5" />
           </div>
-          <div>
-            <h2 className="text-lg font-bold text-slate-900 dark:text-white capitalize">
+          <div className="min-w-0">
+            <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white capitalize truncate">
               {format(currentMonth, 'LLLL yyyy', { locale: ru })}
             </h2>
             <p className="text-xs text-slate-500 dark:text-slate-400">
-              {monthStats.totalDeadlines} со сроком выполнения • {monthStats.completedGoals} выполнено в этом месяце
+              {monthStats.totalDeadlines} со сроком • {monthStats.completedGoals} выполнено
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center justify-between sm:justify-end gap-2 w-full sm:w-auto">
           {/* Фильтр отображения */}
-          <div className="flex items-center bg-slate-100 dark:bg-slate-900 rounded-lg p-0.5 border border-slate-200 dark:border-slate-700 text-xs">
+          <div className="flex items-center bg-slate-100 dark:bg-slate-900 rounded-lg p-0.5 border border-slate-200 dark:border-slate-700 text-xs overflow-x-auto">
             <button
               onClick={() => setFilterType('all')}
               className={cn(
-                "px-2.5 py-1.5 rounded-md font-medium transition-colors",
+                "px-2.5 py-1.5 rounded-md font-medium transition-colors whitespace-nowrap",
                 filterType === 'all' 
                   ? "bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-sm" 
                   : "text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
@@ -118,18 +118,18 @@ export function GoalsCalendar({ onSelectGoal }: GoalsCalendarProps) {
             <button
               onClick={() => setFilterType('deadlines')}
               className={cn(
-                "px-2.5 py-1.5 rounded-md font-medium transition-colors",
+                "px-2.5 py-1.5 rounded-md font-medium transition-colors whitespace-nowrap",
                 filterType === 'deadlines' 
                   ? "bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm" 
                   : "text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
               )}
             >
-              Сроки выполнения
+              Сроки
             </button>
             <button
               onClick={() => setFilterType('completed')}
               className={cn(
-                "px-2.5 py-1.5 rounded-md font-medium transition-colors",
+                "px-2.5 py-1.5 rounded-md font-medium transition-colors whitespace-nowrap",
                 filterType === 'completed' 
                   ? "bg-white dark:bg-slate-800 text-emerald-600 dark:text-emerald-400 shadow-sm" 
                   : "text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
@@ -169,7 +169,7 @@ export function GoalsCalendar({ onSelectGoal }: GoalsCalendarProps) {
         {/* Заголовки дней недели (Пн, Вт, Ср...) */}
         <div className="grid grid-cols-7 border-b border-slate-200 dark:border-slate-700 text-center text-xs font-semibold text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/80">
           {['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'].map((day) => (
-            <div key={day} className="py-2.5">
+            <div key={day} className="py-2 sm:py-2.5">
               {day}
             </div>
           ))}
@@ -205,7 +205,7 @@ export function GoalsCalendar({ onSelectGoal }: GoalsCalendarProps) {
                 key={dayIso}
                 onClick={() => setSelectedDate(day)}
                 className={cn(
-                  "min-h-[90px] sm:min-h-[105px] p-1.5 transition-all cursor-pointer flex flex-col justify-between group",
+                  "min-h-[58px] sm:min-h-[105px] p-1 sm:p-1.5 transition-all cursor-pointer flex flex-col justify-between group",
                   !isCurrentMonth && "bg-slate-50/50 dark:bg-slate-900/30 opacity-40",
                   isSelected 
                     ? "bg-indigo-50/70 dark:bg-indigo-950/40 ring-2 ring-inset ring-indigo-500" 
@@ -214,10 +214,10 @@ export function GoalsCalendar({ onSelectGoal }: GoalsCalendarProps) {
                 )}
               >
                 {/* Номер дня */}
-                <div className="flex items-center justify-between mb-1">
+                <div className="flex items-center justify-between mb-0.5 sm:mb-1">
                   <span
                     className={cn(
-                      "text-xs font-semibold inline-flex items-center justify-center h-6 w-6 rounded-full transition-colors",
+                      "text-[11px] sm:text-xs font-semibold inline-flex items-center justify-center h-5 w-5 sm:h-6 sm:w-6 rounded-full transition-colors",
                       isCurrentDay 
                         ? "bg-indigo-600 text-white font-bold" 
                         : isSelected 
@@ -229,14 +229,14 @@ export function GoalsCalendar({ onSelectGoal }: GoalsCalendarProps) {
                   </span>
 
                   {dayTasksCount > 0 && (
-                    <span className="text-[10px] font-medium text-slate-400 dark:text-slate-500" title={`${dayTasksCount} задач`}>
+                    <span className="hidden sm:inline text-[10px] font-medium text-slate-400 dark:text-slate-500" title={`${dayTasksCount} задач`}>
                       {dayTasksCount} зад.
                     </span>
                   )}
                 </div>
 
-                {/* Значки событий на день */}
-                <div className="space-y-1 overflow-hidden">
+                {/* Значки событий для планшетов и ПК (sm:block) */}
+                <div className="hidden sm:block space-y-1 overflow-hidden">
                   {/* Сроки целей */}
                   {showDeadlines && dayDeadlines.slice(0, 2).map((g) => (
                     <div
@@ -269,8 +269,21 @@ export function GoalsCalendar({ onSelectGoal }: GoalsCalendarProps) {
                   )}
                 </div>
 
+                {/* Цветные точки событий для смартфонов (sm:hidden) */}
+                <div className="sm:hidden flex flex-wrap justify-center items-center gap-1 py-0.5">
+                  {showDeadlines && dayDeadlines.slice(0, 2).map((g) => (
+                    <span key={g.id} className="h-1.5 w-1.5 rounded-full bg-indigo-500" title={`Срок: ${g.title}`} />
+                  ))}
+                  {showCompleted && dayCompleted.slice(0, 2).map((g) => (
+                    <span key={g.id} className="h-1.5 w-1.5 rounded-full bg-emerald-500" title={`Выполнена: ${g.title}`} />
+                  ))}
+                  {dayTasksCount > 0 && (
+                    <span className="h-1.5 w-1.5 rounded-full bg-blue-400" title={`${dayTasksCount} задач`} />
+                  )}
+                </div>
+
                 {/* Маркер наличия задач */}
-                <div className="h-1 mt-auto">
+                <div className="h-1 mt-auto hidden sm:block">
                   {hasItems && (
                     <div className="w-1.5 h-1.5 rounded-full bg-indigo-400 mx-auto" />
                   )}

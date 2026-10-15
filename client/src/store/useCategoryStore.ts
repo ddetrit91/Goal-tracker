@@ -10,7 +10,7 @@ const getUserId = () => {
   catch { return null; }
 };
 
-const API_BASE = 'http://localhost:3000/api';
+import { API_BASE } from '@/config/api';
 
 interface CategoryState {
   categories: Category[];

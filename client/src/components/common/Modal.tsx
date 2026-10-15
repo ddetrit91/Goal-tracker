@@ -39,16 +39,15 @@ export function Modal({ isOpen, onClose, title, children, className }: ModalProp
       <div
         className={cn(
           // Светлая тема
-          'relative w-full max-w-lg rounded-xl bg-white shadow-2xl ring-1 ring-slate-200 animate-in fade-in zoom-in-95 duration-200',
-          // Темная тема <-- ДОБАВЛЕНО
+          'relative w-full max-w-lg max-h-[calc(100dvh-2rem)] flex flex-col rounded-xl bg-white shadow-2xl ring-1 ring-slate-200 animate-in fade-in zoom-in-95 duration-200',
+          // Темная тема
           'dark:bg-slate-800 dark:ring-slate-700 dark:shadow-black/50',
           className
         )}
       >
         {title && (
-          <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4 dark:border-slate-700">
-            {/* <-- ДОБАВЛЕНО: dark:text-white для заголовка --> */}
-            <h2 className="text-lg font-semibold text-slate-900 dark:text-white">{title}</h2>
+          <div className="shrink-0 flex items-center justify-between border-b border-slate-100 px-4 py-3 sm:px-6 sm:py-4 dark:border-slate-700">
+            <h2 className="text-base sm:text-lg font-semibold text-slate-900 dark:text-white">{title}</h2>
             <button
               onClick={onClose}
               className="rounded-full p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors dark:hover:bg-slate-700 dark:hover:text-slate-300"
@@ -57,7 +56,7 @@ export function Modal({ isOpen, onClose, title, children, className }: ModalProp
             </button>
           </div>
         )}
-        <div className="p-6">{children}</div>
+        <div className="overflow-y-auto p-4 sm:p-6 flex-1">{children}</div>
       </div>
     </div>,
     document.body

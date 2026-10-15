@@ -26,7 +26,7 @@ admin.get('/users', async (c) => {
     const userList = await db.select().from(users);
     
     const usersWithGoals = await Promise.all(
-      userList.map(async (user) => {
+      userList.map(async (user: any) => {
         const mainGoals = await db
           .select({ count: count() })
           .from(goalsTable)

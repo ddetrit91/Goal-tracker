@@ -11,9 +11,8 @@ export function ProgressBar({ progress, className, showLabel = true, size = 'md'
   const clampedProgress = Math.min(100, Math.max(0, progress));
 
   const getBarColor = () => {
-    if (clampedProgress === 0) return 'bg-slate-200 dark:bg-slate-500'; // Чуть светлее в темной теме для контраста с белым треком
-    if (clampedProgress === 100) return 'bg-emerald-500';
-    return 'bg-indigo-600';
+    if (clampedProgress === 0) return 'bg-slate-200 dark:bg-slate-600';
+    return 'bg-emerald-500 dark:bg-emerald-400';
   };
 
   const sizes = {

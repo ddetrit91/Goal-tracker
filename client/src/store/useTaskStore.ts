@@ -9,7 +9,8 @@ const getUserId = () => {
   try { return JSON.parse(userStr).id || null; } 
   catch { return null; }
 };
-const API_BASE = 'http://localhost:3000/api';
+
+import { API_BASE } from '@/config/api';
 
 interface TaskState {
   tasks: Task[];

@@ -93,7 +93,11 @@ export function OnboardingTour() {
   const location = useLocation();
   const [currentStepIndex, setCurrentStepIndex] = React.useState(0);
   const [isVisible, setIsVisible] = React.useState(false);
-  const [tooltipRect, setTooltipRect] = React.useState<{ top: number; left: number }>({ top: 0, left: 0 });
+  const [tooltipRect, setTooltipRect] = React.useState<{ top: number; left: number; maxHeight: number }>({ 
+    top: 60, 
+    left: 16, 
+    maxHeight: 480 
+  });
 
   React.useEffect(() => {
     const hasSeenTour = localStorage.getItem('hasSeenOnboarding');
@@ -116,43 +120,91 @@ export function OnboardingTour() {
     const updatePosition = () => {
       const step = TOUR_STEPS[currentStepIndex];
       if (!step) return; 
-      
+
+      const isMobile = window.innerWidth < 640;
       const targetEl = document.querySelector(step.targetSelector);
-      const tooltipWidth = Math.min(420, window.innerWidth - 32);
-      
+      const tooltipWidth = isMobile ? window.innerWidth - 32 : Math.min(420, window.innerWidth - 32);
+
+      // Прокручиваем к элементу, если он не виден на экране и не зафиксирован в навбаре/хедере
+      if (targetEl && step.targetSelector !== '[data-tour="logo"]') {
+        const isFixed = targetEl.closest('nav') !== null || targetEl.closest('header') !== null;
+        if (!isFixed) {
+          targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }
+
+      // МОБИЛЬНЫЙ РЕЖИМ (Ширина экрана < 640px)
+      if (isMobile) {
+        const left = 16;
+        const topReserved = 56;
+        const bottomReserved = 84;
+
+        if (!targetEl || step.targetSelector === '[data-tour="logo"]') {
+          const top = topReserved;
+          const maxHeight = Math.max(220, window.innerHeight - top - bottomReserved);
+          setTooltipRect({ top, left, maxHeight });
+          return;
+        }
+
+        const rect = targetEl.getBoundingClientRect();
+        const isTargetInBottomHalf = rect.top > (window.innerHeight / 2);
+
+        if (isTargetInBottomHalf) {
+          // Элемент внизу: тултип располагается сверху
+          const top = topReserved;
+          const maxHeight = Math.max(220, window.innerHeight - top - bottomReserved);
+          setTooltipRect({ top, left, maxHeight });
+        } else {
+          // Элемент вверху: тултип располагается под ним (или выше нижнего навбара)
+          const maxAvailableTop = window.innerHeight - bottomReserved - 280;
+          const top = Math.max(topReserved, Math.min(rect.bottom + 12, maxAvailableTop));
+          const maxHeight = Math.max(220, window.innerHeight - top - bottomReserved);
+          setTooltipRect({ top, left, maxHeight });
+        }
+        return;
+      }
+
+      // ДЕСКТОПНЫЙ РЕЖИМ
+      const edgeMargin = 20;
+      const desiredHeight = 460;
+
       if (!targetEl || step.targetSelector === '[data-tour="logo"]') {
-        setTooltipRect({ 
-          top: Math.max(20, Math.min(window.innerHeight / 2 - 160, window.innerHeight - 350)), 
-          left: Math.max(16, (window.innerWidth - tooltipWidth) / 2) 
-        });
+        const left = Math.max(edgeMargin, (window.innerWidth - tooltipWidth) / 2);
+        const top = Math.max(edgeMargin, Math.min(window.innerHeight / 2 - 200, window.innerHeight - desiredHeight - edgeMargin));
+        const maxHeight = Math.max(240, window.innerHeight - top - edgeMargin);
+        setTooltipRect({ top, left, maxHeight });
         return;
       }
 
       const rect = targetEl.getBoundingClientRect();
       const gap = 16;
 
-      let top = rect.bottom + gap;
-      let left = rect.left;
+      const fitsRight = rect.right + gap + tooltipWidth < window.innerWidth - edgeMargin;
+      const fitsLeft = rect.left - gap - tooltipWidth > edgeMargin;
 
-      if (rect.right + gap + tooltipWidth < window.innerWidth) {
-        top = Math.max(16, rect.top);
+      let left: number;
+      let top: number;
+
+      if (fitsRight) {
         left = rect.right + gap;
-      } else if (rect.left - gap - tooltipWidth > 0) {
-        top = Math.max(16, rect.top);
+        top = Math.max(edgeMargin, Math.min(rect.top - 10, window.innerHeight - desiredHeight - edgeMargin));
+      } else if (fitsLeft) {
         left = rect.left - gap - tooltipWidth;
+        top = Math.max(edgeMargin, Math.min(rect.top - 10, window.innerHeight - desiredHeight - edgeMargin));
       } else {
-        top = rect.bottom + gap;
-        left = Math.max(16, Math.min(rect.left, window.innerWidth - tooltipWidth - 16));
-        
-        if (top + 340 > window.innerHeight) {
-          top = Math.max(16, rect.top - 340 - gap);
-          if (top < 16) {
-            top = Math.max(16, window.innerHeight - 350);
-          }
+        // Если справа и слева не помещается — центрируем по горизонтали
+        left = Math.max(edgeMargin, Math.min(rect.left, window.innerWidth - tooltipWidth - edgeMargin));
+        if (rect.bottom + gap + desiredHeight <= window.innerHeight - edgeMargin) {
+          top = rect.bottom + gap;
+        } else if (rect.top - gap - desiredHeight >= edgeMargin) {
+          top = rect.top - gap - desiredHeight;
+        } else {
+          top = Math.max(edgeMargin, window.innerHeight - desiredHeight - edgeMargin);
         }
       }
 
-      setTooltipRect({ top, left });
+      const maxHeight = Math.max(240, window.innerHeight - top - edgeMargin);
+      setTooltipRect({ top, left, maxHeight });
     };
 
     updatePosition();
@@ -273,16 +325,21 @@ export function OnboardingTour() {
       <div 
         className={cn(
           "fixed z-[9999] rounded-2xl shadow-2xl border overflow-hidden",
-          "w-[400px] max-w-[calc(100vw-32px)] animate-in fade-in slide-in-from-bottom-4 duration-300",
+          "w-[400px] max-w-[calc(100vw-32px)] flex flex-col",
+          "animate-in fade-in slide-in-from-bottom-4 duration-300",
           // Светлая тема
           "bg-white border-slate-200",
           // Темная тема <-- ДОБАВЛЕНО
           "dark:bg-slate-800 dark:border-slate-700"
         )}
-        style={{ top: tooltipRect.top, left: tooltipRect.left }}
+        style={{ 
+          top: tooltipRect.top, 
+          left: tooltipRect.left,
+          maxHeight: tooltipRect.maxHeight,
+        }}
       >
         {/* Шапка тултипа (градиент остается одинаковым для обеих тем) */}
-        <div className="bg-gradient-to-r from-indigo-600 to-violet-600 px-5 py-4 text-white">
+        <div className="shrink-0 bg-gradient-to-r from-indigo-600 to-violet-600 px-5 py-3.5 sm:py-4 text-white">
           <div className="flex items-center justify-between">
             <h3 className="text-lg font-bold">{currentStep.title}</h3>
             <button onClick={handleSkip} className="p-1 hover:bg-white/20 rounded-full transition-colors">
@@ -290,7 +347,7 @@ export function OnboardingTour() {
             </button>
           </div>
           {/* Индикатор прогресса */}
-          <div className="flex gap-1 mt-3">
+          <div className="flex gap-1 mt-2.5 sm:mt-3">
             {TOUR_STEPS.map((_, idx) => (
               <div 
                 key={idx} 
@@ -303,8 +360,8 @@ export function OnboardingTour() {
           </div>
         </div>
 
-        {/* Контент: 3 блока */}
-        <div className="p-5 space-y-4">
+        {/* Контент: 3 блока с заметным скроллбаром справа */}
+        <div className="p-4 sm:p-5 space-y-3 sm:space-y-4 overflow-y-auto flex-1 overscroll-contain tour-scrollbar pr-3 sm:pr-4 mr-0.5">
           <div className="flex gap-3">
             <span className="text-lg shrink-0">📍</span>
             <div>
@@ -335,7 +392,7 @@ export function OnboardingTour() {
 
         {/* Навигация */}
         {/* <-- ДОБАВЛЕНО: dark:bg-slate-900/50 и dark:border-slate-700 для футера --> */}
-        <div className="px-5 py-4 bg-slate-50 border-t border-slate-200 flex items-center justify-between dark:bg-slate-900/50 dark:border-slate-700">
+        <div className="shrink-0 px-4 sm:px-5 py-3 sm:py-4 bg-slate-50 border-t border-slate-200 flex items-center justify-between dark:bg-slate-900/50 dark:border-slate-700">
           <button 
             onClick={handlePrev}
             disabled={isFirst}

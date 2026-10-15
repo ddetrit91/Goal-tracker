@@ -42,6 +42,47 @@
   .focus-ring {
     @apply outline-none ring-2 ring-indigo-500 ring-offset-2 ring-offset-slate-50;
   }
+
+  /* Заметный красивый скроллбар для панели онбординга */
+  .tour-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: #94a3b8 rgba(241, 245, 249, 0.8);
+  }
+
+  .dark .tour-scrollbar {
+    scrollbar-color: #64748b rgba(15, 23, 42, 0.6);
+  }
+
+  .tour-scrollbar::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .tour-scrollbar::-webkit-scrollbar-track {
+    background: rgba(241, 245, 249, 0.8);
+    border-radius: 9999px;
+    margin: 4px 0;
+  }
+
+  .dark .tour-scrollbar::-webkit-scrollbar-track {
+    background: rgba(15, 23, 42, 0.6);
+  }
+
+  .tour-scrollbar::-webkit-scrollbar-thumb {
+    background: #94a3b8;
+    border-radius: 9999px;
+  }
+
+  .tour-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: #6366f1;
+  }
+
+  .dark .tour-scrollbar::-webkit-scrollbar-thumb {
+    background: #64748b;
+  }
+
+  .dark .tour-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: #818cf8;
+  }
 }
 
 @layer utilities {

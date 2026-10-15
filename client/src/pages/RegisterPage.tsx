@@ -3,6 +3,7 @@ import * as React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { UserPlus, Eye, EyeOff, Loader2 } from 'lucide-react';
 import { cn } from '@/utils/cn';
+import { API_BASE } from '@/config/api';
 
 export function RegisterPage() {
   const navigate = useNavigate();
@@ -19,7 +20,7 @@ export function RegisterPage() {
     setError('');
 
     try {
-      const res = await fetch('http://localhost:3000/api/auth/register', {
+      const res = await fetch(`${API_BASE}/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name, email, password }),

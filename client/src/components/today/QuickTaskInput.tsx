@@ -38,7 +38,7 @@ export function QuickTaskInput() {
         value={title}
         onChange={(e) => setTitle(e.target.value)}
         placeholder="Добавить новую задачу (Enter)..."
-        className="w-full rounded-xl border border-slate-200 bg-white py-3 pl-4 pr-12 text-sm shadow-sm transition-all focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none placeholder:text-slate-400"
+        className="w-full rounded-xl border border-slate-200 bg-white py-3 pl-4 pr-12 text-sm shadow-sm transition-all focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none placeholder:text-slate-400 dark:bg-slate-800 dark:border-slate-700 dark:text-white dark:placeholder:text-slate-500"
       />
       <button
         type="submit"

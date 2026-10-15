@@ -24,8 +24,8 @@ export function VisionBoardPage() {
   };
 
   return (
-    <div className="max-w-6xl mx-auto p-6 pb-24 md:pb-6">
-      <header className="mb-8">
+    <div className="max-w-6xl mx-auto p-4 sm:p-6 pb-28 md:pb-6">
+      <header className="mb-6 sm:mb-8">
         {/* <-- ДОБАВЛЕНО: dark:text-white для главного заголовка */}
         <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Доска желаний & Виш-лист</h1>
         {/* <-- ДОБАВЛЕНО: dark:text-slate-400 для подзаголовка */}

@@ -99,12 +99,12 @@ export function GoalCard({ goal, level = 0, onAddSubgoal, onEditGoal, onDeleteGo
   }, [goal.targetDate]);
 
   return (
-    <div className={cn('mb-4 group/card', level > 0 && 'ml-6 border-l-2 border-slate-100 pl-4 dark:border-slate-700')}>
-      <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition-all hover:shadow-md relative dark:bg-slate-800 dark:border-slate-700 dark:hover:shadow-none">
+    <div className={cn('mb-4 group/card', level > 0 && 'ml-2 sm:ml-6 border-l-2 border-slate-100 pl-2 sm:pl-4 dark:border-slate-700')}>
+      <div className="rounded-xl border border-slate-200 bg-white p-3.5 sm:p-4 shadow-sm transition-all hover:shadow-md relative dark:bg-slate-800 dark:border-slate-700 dark:hover:shadow-none">
         
         {/* Кнопки действий */}
         {(onEditGoal || onDeleteGoal) && (
-          <div className="absolute top-4 right-4 flex gap-1 opacity-0 group-hover/card:opacity-100 transition-opacity md:opacity-0 opacity-100">
+          <div className="absolute top-3 right-3 sm:top-4 sm:right-4 flex gap-1 opacity-100 md:opacity-0 md:group-hover/card:opacity-100 transition-opacity">
             {onEditGoal && (
               <button onClick={() => onEditGoal(goal)} className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors dark:hover:text-indigo-400 dark:hover:bg-indigo-900/20" title="Редактировать">
                 <Pencil className="h-4 w-4" />
@@ -119,15 +119,20 @@ export function GoalCard({ goal, level = 0, onAddSubgoal, onEditGoal, onDeleteGo
           </div>
         )}
 
-        <div className="flex items-start gap-3 pr-16">
+        <div className="flex items-start gap-2 md:gap-3 md:pr-16">
           {hasChildren ? (
-            <button onClick={() => setIsExpanded(!isExpanded)} className="mt-1 text-slate-400 hover:text-indigo-600 transition-colors dark:text-slate-300 dark:hover:text-white">
+            <button onClick={() => setIsExpanded(!isExpanded)} className="mt-1 text-slate-400 hover:text-indigo-600 transition-colors dark:text-slate-300 dark:hover:text-white shrink-0">
               {isExpanded ? <ChevronDown className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
             </button>
-          ) : <div className="w-5 shrink-0" />}
+          ) : level > 0 ? (
+            <div className="w-3 md:w-5 shrink-0" />
+          ) : (
+            <div className="hidden md:block w-5 shrink-0" />
+          )}
           
           <div className="flex-1 min-w-0">
-            <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
+            {/* Заголовок цели и бейджи: отступ pr-14 только на мобильных, чтобы не перекрывать кнопки действий */}
+            <div className="flex items-center justify-between mb-2 flex-wrap gap-2 pr-14 md:pr-0">
               <h3 className="font-semibold text-slate-900 truncate dark:text-white">{goal.title}</h3>
               <div className="flex items-center gap-2">
                 
@@ -189,7 +194,10 @@ export function GoalCard({ goal, level = 0, onAddSubgoal, onEditGoal, onDeleteGo
               </div>
             )}
 
-            <ProgressBar progress={goal.progress} size="sm" />
+            <div className="my-2">
+              <ProgressBar progress={goal.progress} size="md" className="md:hidden" />
+              <ProgressBar progress={goal.progress} size="sm" className="hidden md:block" />
+            </div>
             
             {/* СЧЕТЧИК ЗАДАЧ И КНОПКА ДОБАВЛЕНИЯ ПОДЦЕЛИ / ЗАДАЧИ */}
             <div className="flex items-center justify-between mt-3 flex-wrap gap-2">

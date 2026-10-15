@@ -38,15 +38,15 @@ export function UpcomingDeadlines({ onOpenCreateGoal, activeHorizon = 'all' }: U
       "bg-gradient-to-br from-indigo-50/80 via-white to-indigo-50/30 border-indigo-100",
       "dark:from-slate-800/90 dark:via-slate-800/50 dark:to-slate-900 dark:border-slate-700"
     )}>
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
-          <Clock className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
-          <h2 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider">
+      <div className="flex items-center justify-between gap-3 mb-4">
+        <div className="flex items-center gap-2 min-w-0">
+          <Clock className="h-5 w-5 text-indigo-600 dark:text-indigo-400 shrink-0" />
+          <h2 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider truncate">
             Ближайшие сроки выполнения
           </h2>
         </div>
         {upcomingGoals.length > 0 && (
-          <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300">
+          <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300 whitespace-nowrap shrink-0">
             {upcomingGoals.length} {upcomingGoals.length === 1 ? 'цель' : 'цели'}
           </span>
         )}
@@ -128,11 +128,11 @@ export function UpcomingDeadlines({ onOpenCreateGoal, activeHorizon = 'all' }: U
                   </span>
                 </div>
 
-                <div className="w-full bg-slate-100 dark:bg-slate-700 h-1.5 rounded-full overflow-hidden mt-2">
+                <div className="w-full bg-slate-100 dark:bg-slate-700 h-2 rounded-full overflow-hidden mt-2">
                   <div 
                     className={cn(
-                      "h-full transition-all duration-300",
-                      isOverdue ? "bg-red-500" : isUrgent ? "bg-amber-500" : "bg-indigo-600 dark:bg-indigo-400"
+                      "h-full rounded-full transition-all duration-300",
+                      isOverdue ? "bg-red-500" : isUrgent ? "bg-amber-500" : "bg-emerald-500 dark:bg-emerald-400"
                     )}
                     style={{ width: `${Math.min(100, Math.max(0, goal.progress))}%` }}
                   />
