@@ -4,9 +4,6 @@ var __export = (target, all) => {
     __defProp(target, name, { get: all[name], enumerable: true });
 };
 
-// server/src/serverless.ts
-import { handle } from "hono/vercel";
-
 // server/src/app.ts
 import { Hono as Hono3 } from "hono";
 import { cors } from "hono/cors";
@@ -816,20 +813,17 @@ app.get("/", (c) => c.json({ status: "ok", service: "Goal Tracker API" }));
 var app_default = app;
 
 // server/src/serverless.ts
-var handler = handle(app_default);
-var GET = handler;
-var POST = handler;
-var PUT = handler;
-var DELETE = handler;
-var PATCH = handler;
-var OPTIONS = handler;
-var serverless_default = handler;
+var GET = (req) => app_default.fetch(req);
+var POST = (req) => app_default.fetch(req);
+var PUT = (req) => app_default.fetch(req);
+var DELETE = (req) => app_default.fetch(req);
+var PATCH = (req) => app_default.fetch(req);
+var OPTIONS = (req) => app_default.fetch(req);
 export {
   DELETE,
   GET,
   OPTIONS,
   PATCH,
   POST,
-  PUT,
-  serverless_default as default
+  PUT
 };
