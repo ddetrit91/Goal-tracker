@@ -7,11 +7,16 @@ import { fileURLToPath } from 'url';
 
 dotenv.config();
 
+function clean(val?: string) {
+  if (!val) return val;
+  return val.trim().replace(/^["']|["']$/g, '').trim();
+}
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const defaultLocalDbPath = `file:${path.resolve(__dirname, '../../local.db').replace(/\\/g, '/')}`;
 
-const rawUrl = process.env.TURSO_DATABASE_URL || process.env.DATABASE_URL;
+const rawUrl = clean(process.env.TURSO_DATABASE_URL || process.env.DATABASE_URL);
 let url = rawUrl;
 
 if (!url) {
@@ -22,7 +27,9 @@ if (!url) {
   url = `file:${path.resolve(__dirname, '../../', url).replace(/\\/g, '/')}`;
 }
 
-const authToken = process.env.TURSO_AUTH_TOKEN || process.env.DATABASE_AUTH_TOKEN;
+const authToken = clean(process.env.TURSO_AUTH_TOKEN || process.env.DATABASE_AUTH_TOKEN);
+
+console.log(`🔌 Database connecting to: ${url?.startsWith('libsql://') ? url.slice(0, 25) + '...' : url}`);
 
 export const client = createClient({
   url,

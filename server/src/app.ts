@@ -11,9 +11,14 @@ import { users } from './db/schema';
 // Загрузка переменных окружения
 dotenv.config();
 
-const clientOrigin = process.env.CLIENT_ORIGIN || 'http://localhost:5173';
-const adminEmail = process.env.ADMIN_EMAIL || 'admin@goaltracker.local';
-const adminPassword = process.env.ADMIN_PASSWORD || 'AdminPass123!';
+function clean(val?: string) {
+  if (!val) return val;
+  return val.trim().replace(/^["']|["']$/g, '').trim();
+}
+
+const clientOrigin = clean(process.env.CLIENT_ORIGIN) || 'http://localhost:5173';
+const adminEmail = clean(process.env.ADMIN_EMAIL) || 'admin@goaltracker.local';
+const adminPassword = clean(process.env.ADMIN_PASSWORD) || 'AdminPass123!';
 
 // Флаг инициализации базы данных
 let isInitialized = false;

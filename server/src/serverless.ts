@@ -1,8 +1,15 @@
 import app from './app';
 
-export const GET = (req: Request) => app.fetch(req);
-export const POST = (req: Request) => app.fetch(req);
-export const PUT = (req: Request) => app.fetch(req);
-export const DELETE = (req: Request) => app.fetch(req);
-export const PATCH = (req: Request) => app.fetch(req);
-export const OPTIONS = (req: Request) => app.fetch(req);
+const handler = (req: Request) => {
+  console.log(`[API] ${req.method} ${req.url}`);
+  return app.fetch(req);
+};
+
+export const GET = handler;
+export const POST = handler;
+export const PUT = handler;
+export const DELETE = handler;
+export const PATCH = handler;
+export const OPTIONS = handler;
+
+export default handler;

@@ -103,10 +103,14 @@ import dotenv from "dotenv";
 import path from "path";
 import { fileURLToPath } from "url";
 dotenv.config();
+function clean(val) {
+  if (!val) return val;
+  return val.trim().replace(/^["']|["']$/g, "").trim();
+}
 var __filename = fileURLToPath(import.meta.url);
 var __dirname = path.dirname(__filename);
 var defaultLocalDbPath = `file:${path.resolve(__dirname, "../../local.db").replace(/\\/g, "/")}`;
-var rawUrl = process.env.TURSO_DATABASE_URL || process.env.DATABASE_URL;
+var rawUrl = clean(process.env.TURSO_DATABASE_URL || process.env.DATABASE_URL);
 var url = rawUrl;
 if (!url) {
   url = defaultLocalDbPath;
@@ -115,7 +119,8 @@ if (!url) {
 } else if (url.startsWith("./") || url.startsWith("../")) {
   url = `file:${path.resolve(__dirname, "../../", url).replace(/\\/g, "/")}`;
 }
-var authToken = process.env.TURSO_AUTH_TOKEN || process.env.DATABASE_AUTH_TOKEN;
+var authToken = clean(process.env.TURSO_AUTH_TOKEN || process.env.DATABASE_AUTH_TOKEN);
+console.log(`\u{1F50C} Database connecting to: ${url?.startsWith("libsql://") ? url.slice(0, 25) + "..." : url}`);
 var client = createClient({
   url,
   authToken
@@ -730,9 +735,13 @@ var admin_default = admin;
 
 // server/src/app.ts
 dotenv2.config();
-var clientOrigin = process.env.CLIENT_ORIGIN || "http://localhost:5173";
-var adminEmail = process.env.ADMIN_EMAIL || "admin@goaltracker.local";
-var adminPassword = process.env.ADMIN_PASSWORD || "AdminPass123!";
+function clean2(val) {
+  if (!val) return val;
+  return val.trim().replace(/^["']|["']$/g, "").trim();
+}
+var clientOrigin = clean2(process.env.CLIENT_ORIGIN) || "http://localhost:5173";
+var adminEmail = clean2(process.env.ADMIN_EMAIL) || "admin@goaltracker.local";
+var adminPassword = clean2(process.env.ADMIN_PASSWORD) || "AdminPass123!";
 var isInitialized = false;
 async function ensureDbInitialized() {
   if (isInitialized) return;
@@ -813,17 +822,23 @@ app.get("/", (c) => c.json({ status: "ok", service: "Goal Tracker API" }));
 var app_default = app;
 
 // server/src/serverless.ts
-var GET = (req) => app_default.fetch(req);
-var POST = (req) => app_default.fetch(req);
-var PUT = (req) => app_default.fetch(req);
-var DELETE = (req) => app_default.fetch(req);
-var PATCH = (req) => app_default.fetch(req);
-var OPTIONS = (req) => app_default.fetch(req);
+var handler = (req) => {
+  console.log(`[API] ${req.method} ${req.url}`);
+  return app_default.fetch(req);
+};
+var GET = handler;
+var POST = handler;
+var PUT = handler;
+var DELETE = handler;
+var PATCH = handler;
+var OPTIONS = handler;
+var serverless_default = handler;
 export {
   DELETE,
   GET,
   OPTIONS,
   PATCH,
   POST,
-  PUT
+  PUT,
+  serverless_default as default
 };
