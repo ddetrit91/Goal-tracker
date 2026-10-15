@@ -4,6 +4,9 @@ var __export = (target, all) => {
     __defProp(target, name, { get: all[name], enumerable: true });
 };
 
+// server/src/serverless.ts
+import { getRequestListener } from "@hono/node-server";
+
 // server/src/app.ts
 import { Hono as Hono3 } from "hono";
 import { cors } from "hono/cors";
@@ -822,23 +825,7 @@ app.get("/", (c) => c.json({ status: "ok", service: "Goal Tracker API" }));
 var app_default = app;
 
 // server/src/serverless.ts
-var handler = (req) => {
-  console.log(`[API] ${req.method} ${req.url}`);
-  return app_default.fetch(req);
-};
-var GET = handler;
-var POST = handler;
-var PUT = handler;
-var DELETE = handler;
-var PATCH = handler;
-var OPTIONS = handler;
-var serverless_default = handler;
+var serverless_default = getRequestListener(app_default.fetch);
 export {
-  DELETE,
-  GET,
-  OPTIONS,
-  PATCH,
-  POST,
-  PUT,
   serverless_default as default
 };
