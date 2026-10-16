@@ -1,12 +1,16 @@
+import * as React from 'react';
 import { useTaskStore } from '@/store/useTaskStore';
 import { useGoalStore } from '@/store/useGoalStore';
 import { TaskItem } from '@/components/today/TaskItem';
+import { TaskEditModal } from '@/components/goals/TaskEditModal';
 import { Star, AlertCircle, CheckCircle } from 'lucide-react';
 import { cn } from '@/utils/cn';
+import type { Task } from '@/types/task';
 
 export function DailyFocus() {
   const { tasks, toggleDailyFocus } = useTaskStore();
   const { goals } = useGoalStore();
+  const [editingTask, setEditingTask] = React.useState<Task | null>(null);
   
   // Получаем фокус-задачи (все выбранные в фокус дня)
   const focusTasks = tasks.filter(t => t.isDailyFocus);
@@ -59,7 +63,11 @@ export function DailyFocus() {
         <ul className="space-y-2">
           {focusTasks.map(task => (
             <li key={task.id}>
-              <TaskItem task={task} onToggleFocus={toggleDailyFocus} />
+              <TaskItem 
+                task={task} 
+                onToggleFocus={toggleDailyFocus} 
+                onEdit={(t) => setEditingTask(t)}
+              />
             </li>
           ))}
         </ul>
@@ -78,6 +86,13 @@ export function DailyFocus() {
           <p>Лимит фокуса достигнут. Завершите одну из задач или уберите её из фокуса, чтобы добавить новую.</p>
         </div>
       )}
+
+      {/* Модальное окно редактирования задачи */}
+      <TaskEditModal 
+        isOpen={!!editingTask} 
+        onClose={() => setEditingTask(null)} 
+        task={editingTask} 
+      />
     </div>
   );
 }

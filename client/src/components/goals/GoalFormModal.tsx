@@ -6,7 +6,8 @@ import { useGoalStore } from '@/store/useGoalStore';
 import { useCategoryStore } from '@/store/useCategoryStore';
 import { GOAL_HORIZONS, GOAL_PRIORITIES, type GoalHorizon, type GoalPriority, type Goal } from '@/types/goal';
 import type { CreateGoalInput, UpdateGoalInput } from '@/types/goal';
-import { Info, Calendar } from 'lucide-react';
+import { Info, Calendar, Mic, MicOff } from 'lucide-react';
+import { useSpeechRecognition } from '@/utils/useSpeechRecognition';
 import { cn } from '@/utils/cn';
 import { toISODateString } from '@/utils/date';
 import { addDays, addMonths, addYears, parseISO } from 'date-fns';
@@ -107,39 +108,123 @@ export function GoalFormModal({
   // Проверяем, выбрана ли категория Виш-лист или legacy custom
   const isWishlist = formData.category === 'wishlist' || formData.category === 'custom';
 
+  const handleVoiceTitle = React.useCallback((text: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      title: prev.title ? `${prev.title} ${text}` : text,
+    }));
+  }, []);
+
+  const handleVoiceDescription = React.useCallback((text: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      description: prev.description ? `${prev.description} ${text}` : text,
+    }));
+  }, []);
+
+  const speechTitle = useSpeechRecognition(handleVoiceTitle);
+  const speechDesc = useSpeechRecognition(handleVoiceDescription);
+
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={isEditing ? 'Редактировать цель' : (parentId ? 'Новая подцель' : 'Новая цель')}>
       <form onSubmit={handleSubmit} className="space-y-5">
         <div>
-          <div className="flex items-center gap-2 mb-1.5">
-            {/* <-- ДОБАВЛЕНО: dark:text-slate-300 для лейбла --> */}
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Название цели</label>
-            <div className="group relative"><Info className="h-4 w-4 text-slate-400 cursor-help" />
-              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 p-2 bg-slate-800 text-white text-xs rounded-lg shadow-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 leading-relaxed">
-                Формулируйте конкретно. Не «Учить язык», а «Сдать IELTS на 7.0».
-                <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-slate-800"></div>
+          <div className="flex items-center justify-between mb-1.5">
+            <div className="flex items-center gap-2">
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Название цели</label>
+              <div className="group relative inline-flex items-center">
+                <button 
+                  type="button" 
+                  tabIndex={0} 
+                  aria-label="Подсказка к названию цели"
+                  className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors focus:outline-none"
+                >
+                  <Info className="h-4 w-4 cursor-pointer" />
+                </button>
+                <div className="absolute top-full left-0 sm:left-1/2 sm:-translate-x-1/2 mt-1.5 w-60 sm:w-64 p-2.5 bg-slate-900/95 backdrop-blur-sm text-slate-100 text-xs rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible group-focus-within:opacity-100 group-focus-within:visible transition-all pointer-events-none z-50 leading-relaxed border border-slate-700/60">
+                  Формулируйте конкретно. Не «Учить язык», а «Сдать IELTS на 7.0».
+                  <div className="hidden sm:block absolute bottom-full left-1/2 -translate-x-1/2 border-4 border-transparent border-b-slate-900"></div>
+                </div>
               </div>
             </div>
+
+            {speechTitle.isSupported && (
+              <button
+                type="button"
+                onClick={speechTitle.toggleListening}
+                className={cn(
+                  "p-1 rounded-md text-xs flex items-center gap-1 transition-colors",
+                  speechTitle.isListening 
+                    ? "bg-red-500 text-white animate-pulse" 
+                    : "text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400"
+                )}
+                title={speechTitle.isListening ? "Остановить запись" : "Голосовой ввод названия"}
+              >
+                {speechTitle.isListening ? <MicOff className="h-3.5 w-3.5" /> : <Mic className="h-3.5 w-3.5" />}
+                <span className="text-[11px] hidden sm:inline">{speechTitle.isListening ? "Слушаю..." : "Голос"}</span>
+              </button>
+            )}
           </div>
-          {/* <-- ДОБАВЛЕНО: dark:bg-slate-900, dark:border-slate-700, dark:text-white, dark:placeholder-slate-500 --> */}
-          <input type="text" required value={formData.title} onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-            className="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none dark:bg-slate-900 dark:border-slate-700 dark:text-white dark:placeholder-slate-500" placeholder="Чего я хочу достичь?" />
+          <input 
+            type="text" 
+            required 
+            value={formData.title} 
+            onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+            className={cn(
+              "w-full rounded-lg border px-3 py-2.5 text-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none dark:bg-slate-900 dark:text-white",
+              speechTitle.isListening ? "border-red-500 bg-red-50/20" : "border-slate-300 dark:border-slate-700"
+            )}
+            placeholder={speechTitle.isListening ? "Говорите название цели..." : "Чего я хочу достичь?"} 
+          />
         </div>
 
         <div>
-          <div className="flex items-center gap-2 mb-1.5">
-            {/* <-- ДОБАВЛЕНО: dark:text-slate-300 для лейбла --> */}
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Зачем мне это? (Мотивация)</label>
-            <div className="group relative"><Info className="h-4 w-4 text-slate-400 cursor-help" />
-              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 p-2 bg-slate-800 text-white text-xs rounded-lg shadow-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 leading-relaxed">
-                Это ваш «якорь». Когда будет лень, перечитайте это.
-                <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-slate-800"></div>
+          <div className="flex items-center justify-between mb-1.5">
+            <div className="flex items-center gap-2">
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Зачем мне это? (Мотивация)</label>
+              <div className="group relative inline-flex items-center">
+                <button 
+                  type="button" 
+                  tabIndex={0} 
+                  aria-label="Подсказка к мотивации"
+                  className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors focus:outline-none"
+                >
+                  <Info className="h-4 w-4 cursor-pointer" />
+                </button>
+                <div className="absolute top-full left-0 sm:left-1/2 sm:-translate-x-1/2 mt-1.5 w-60 sm:w-64 p-2.5 bg-slate-900/95 backdrop-blur-sm text-slate-100 text-xs rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible group-focus-within:opacity-100 group-focus-within:visible transition-all pointer-events-none z-50 leading-relaxed border border-slate-700/60">
+                  Это ваш «якорь». Когда будет лень, перечитайте это.
+                  <div className="hidden sm:block absolute bottom-full left-1/2 -translate-x-1/2 border-4 border-transparent border-b-slate-900"></div>
+                </div>
               </div>
             </div>
+
+            {speechDesc.isSupported && (
+              <button
+                type="button"
+                onClick={speechDesc.toggleListening}
+                className={cn(
+                  "p-1 rounded-md text-xs flex items-center gap-1 transition-colors",
+                  speechDesc.isListening 
+                    ? "bg-red-500 text-white animate-pulse" 
+                    : "text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400"
+                )}
+                title={speechDesc.isListening ? "Остановить запись" : "Голосовой ввод мотивации"}
+              >
+                {speechDesc.isListening ? <MicOff className="h-3.5 w-3.5" /> : <Mic className="h-3.5 w-3.5" />}
+                <span className="text-[11px] hidden sm:inline">{speechDesc.isListening ? "Слушаю..." : "Голос"}</span>
+              </button>
+            )}
           </div>
-          {/* <-- ДОБАВЛЕНО: dark:bg-slate-900, dark:border-slate-700, dark:text-white, dark:placeholder-slate-500 --> */}
-          <textarea value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-            className="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none resize-none dark:bg-slate-900 dark:border-slate-700 dark:text-white dark:placeholder-slate-500" rows={3} placeholder="Почему эта цель важна для меня?" />
+          <textarea 
+            value={formData.description} 
+            onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+            className={cn(
+              "w-full rounded-lg border px-3 py-2.5 text-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none resize-none dark:bg-slate-900 dark:text-white",
+              speechDesc.isListening ? "border-red-500 bg-red-50/20" : "border-slate-300 dark:border-slate-700"
+            )}
+            rows={3} 
+            placeholder={speechDesc.isListening ? "Говорите описание цели..." : "Почему эта цель важна для меня?"} 
+          />
         </div>
 
         <div className="grid grid-cols-2 gap-4">

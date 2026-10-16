@@ -4,14 +4,17 @@ import { useGoalStore } from '@/store/useGoalStore';
 import { useTaskStore } from '@/store/useTaskStore';
 import { ProgressBar } from '@/components/common/ProgressBar';
 import { CategoryBadge } from '@/components/common/CategoryBadge';
+import { Button } from '@/components/common/Button';
 import { SYSTEM_CATEGORY_MAP } from '@/types/category';
-import { Trophy, CheckCircle2, CalendarCheck } from 'lucide-react';
+import { Trophy, CheckCircle2, CalendarCheck, FileSpreadsheet } from 'lucide-react';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
+import { ExportExcelModal } from '@/components/analytics/ExportExcelModal';
 
 export function AnalyticsPage() {
   const { goals, fetchGoals } = useGoalStore();
   const { tasks, fetchTasks } = useTaskStore();
+  const [isExportModalOpen, setIsExportModalOpen] = React.useState(false);
 
   // ГАРАНТИРОВАННАЯ ЗАГРУЗКА ДАННЫХ ПРИ ОТКРЫТИИ СТРАНИЦЫ
   React.useEffect(() => {
@@ -64,9 +67,18 @@ export function AnalyticsPage() {
 
   return (
     <div className="max-w-4xl mx-auto p-4 sm:p-6 pb-28 md:pb-6">
-      <header className="mb-6 sm:mb-8">
-        <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Обзор и Аналитика</h1>
-        <p className="text-slate-500 mt-1 dark:text-slate-400">Баланс сфер жизни и журнал побед</p>
+      <header className="mb-6 sm:mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Обзор и Аналитика</h1>
+          <p className="text-slate-500 mt-1 dark:text-slate-400">Баланс сфер жизни и журнал побед</p>
+        </div>
+        <Button
+          onClick={() => setIsExportModalOpen(true)}
+          className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm shrink-0 self-start sm:self-auto"
+        >
+          <FileSpreadsheet className="h-4 w-4" />
+          Выгрузить в Excel (.xlsx)
+        </Button>
       </header>
 
       {/* Колесо баланса */}
@@ -129,6 +141,13 @@ export function AnalyticsPage() {
           </ul>
         )}
       </section>
+
+      <ExportExcelModal
+        isOpen={isExportModalOpen}
+        onClose={() => setIsExportModalOpen(false)}
+        goals={goals}
+        tasks={tasks}
+      />
     </div>
   );
 }

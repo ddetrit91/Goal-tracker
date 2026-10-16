@@ -196,23 +196,22 @@ admin.get('/stats', async (c) => {
 
 // client/src/server/admin.ts (найди и замени GET /admin/activity)
 
-// GET /admin/activity - Журнал входов (последний вход + кол-во запросов)
+// GET /admin/activity - Журнал активности всех пользователей
 admin.get('/activity', async (c) => {
   try {
-    // Используем raw SQL для агрегации: берем макс. дату входа и считаем логи
     const logs = await db.select({
-      userId: activityLogs.userId,
+      userId: users.id,
       userName: users.name,
       userEmail: users.email,
       userRole: users.role,
-      lastLogin: sql<string>`MAX(${activityLogs.createdAt})`.as('last_login'), // <-- Последняя активность
-      requestCount: sql<number>`COUNT(*)`.as('request_count'), // <-- Количество входов
+      lastLogin: sql<string>`COALESCE(MAX(${activityLogs.createdAt}), ${users.lastLogin}, ${users.createdAt})`.as('last_login'),
+      requestCount: sql<number>`COUNT(${activityLogs.id})`.as('request_count'),
     })
-    .from(activityLogs)
-    .leftJoin(users, eq(activityLogs.userId, users.id))
-    .groupBy(activityLogs.userId, users.name, users.email, users.role) // Группируем по юзеру
-    .orderBy(sql`MAX(${activityLogs.createdAt}) DESC`) // Сортируем по последнему входу
-    .limit(50);
+    .from(users)
+    .leftJoin(activityLogs, eq(users.id, activityLogs.userId))
+    .groupBy(users.id, users.name, users.email, users.role, users.createdAt, users.lastLogin)
+    .orderBy(sql`COALESCE(MAX(${activityLogs.createdAt}), ${users.lastLogin}, ${users.createdAt}) DESC`)
+    .limit(100);
     
     return c.json(logs);
   } catch (error) {

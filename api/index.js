@@ -204,6 +204,74 @@ auth.post("/login", zValidator("json", loginSchema), async (c) => {
     return c.json({ error: "\u041E\u0448\u0438\u0431\u043A\u0430 \u0441\u0435\u0440\u0432\u0435\u0440\u0430 \u043F\u0440\u0438 \u0432\u0445\u043E\u0434\u0435" }, 500);
   }
 });
+var resetCodeStore = /* @__PURE__ */ new Map();
+var forgotPasswordSchema = z.object({
+  email: z.string().email("\u041D\u0435\u043A\u043E\u0440\u0440\u0435\u043A\u0442\u043D\u044B\u0439 email")
+});
+var resetPasswordSchema = z.object({
+  email: z.string().email("\u041D\u0435\u043A\u043E\u0440\u0440\u0435\u043A\u0442\u043D\u044B\u0439 email"),
+  code: z.string().min(4, "\u0412\u0432\u0435\u0434\u0438\u0442\u0435 \u043A\u043E\u0434 \u043F\u043E\u0434\u0442\u0432\u0435\u0440\u0436\u0434\u0435\u043D\u0438\u044F"),
+  newPassword: z.string().min(6, "\u041F\u0430\u0440\u043E\u043B\u044C \u0434\u043E\u043B\u0436\u0435\u043D \u0431\u044B\u0442\u044C \u043D\u0435 \u043C\u0435\u043D\u0435\u0435 6 \u0441\u0438\u043C\u0432\u043E\u043B\u043E\u0432")
+});
+auth.post("/forgot-password", zValidator("json", forgotPasswordSchema), async (c) => {
+  try {
+    const { email } = c.req.valid("json");
+    const normalizedEmail = email.trim().toLowerCase();
+    const user = await db.select().from(users).where(eq(users.email, normalizedEmail)).get();
+    if (!user) {
+      return c.json({ error: "\u041F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u0442\u0435\u043B\u044C \u0441 \u0442\u0430\u043A\u0438\u043C email \u043D\u0435 \u043D\u0430\u0439\u0434\u0435\u043D" }, 404);
+    }
+    const code = Math.floor(1e5 + Math.random() * 9e5).toString();
+    const expiresAt = Date.now() + 15 * 60 * 1e3;
+    resetCodeStore.set(normalizedEmail, { code, expiresAt });
+    console.log(`\u{1F511} \u041A\u043E\u0434 \u0432\u043E\u0441\u0441\u0442\u0430\u043D\u043E\u0432\u043B\u0435\u043D\u0438\u044F \u043F\u0430\u0440\u043E\u043B\u044F \u0434\u043B\u044F ${normalizedEmail}: ${code}`);
+    return c.json({
+      message: "\u041A\u043E\u0434 \u0434\u043B\u044F \u0432\u043E\u0441\u0441\u0442\u0430\u043D\u043E\u0432\u043B\u0435\u043D\u0438\u044F \u043F\u0430\u0440\u043E\u043B\u044F \u0443\u0441\u043F\u0435\u0448\u043D\u043E \u0441\u0444\u043E\u0440\u043C\u0438\u0440\u043E\u0432\u0430\u043D",
+      email: normalizedEmail,
+      code
+    });
+  } catch (error) {
+    console.error("Forgot password error:", error);
+    return c.json({ error: "\u041E\u0448\u0438\u0431\u043A\u0430 \u0441\u0435\u0440\u0432\u0435\u0440\u0430 \u043F\u0440\u0438 \u0441\u0431\u0440\u043E\u0441\u0435 \u043F\u0430\u0440\u043E\u043B\u044F" }, 500);
+  }
+});
+auth.post("/reset-password", zValidator("json", resetPasswordSchema), async (c) => {
+  try {
+    const { email, code, newPassword } = c.req.valid("json");
+    const normalizedEmail = email.trim().toLowerCase();
+    const user = await db.select().from(users).where(eq(users.email, normalizedEmail)).get();
+    if (!user) {
+      return c.json({ error: "\u041F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u0442\u0435\u043B\u044C \u043D\u0435 \u043D\u0430\u0439\u0434\u0435\u043D" }, 404);
+    }
+    const savedRecord = resetCodeStore.get(normalizedEmail);
+    if (!savedRecord) {
+      return c.json({ error: "\u0417\u0430\u043F\u0440\u043E\u0441 \u043D\u0430 \u0441\u0431\u0440\u043E\u0441 \u043F\u0430\u0440\u043E\u043B\u044F \u043D\u0435 \u043D\u0430\u0439\u0434\u0435\u043D \u0438\u043B\u0438 \u0443\u0441\u0442\u0430\u0440\u0435\u043B. \u0417\u0430\u043F\u0440\u043E\u0441\u0438\u0442\u0435 \u043A\u043E\u0434 \u0437\u0430\u043D\u043E\u0432\u043E." }, 400);
+    }
+    if (Date.now() > savedRecord.expiresAt) {
+      resetCodeStore.delete(normalizedEmail);
+      return c.json({ error: "\u0421\u0440\u043E\u043A \u0434\u0435\u0439\u0441\u0442\u0432\u0438\u044F \u043A\u043E\u0434\u0430 \u0438\u0441\u0442\u0451\u043A. \u0417\u0430\u043F\u0440\u043E\u0441\u0438\u0442\u0435 \u043D\u043E\u0432\u044B\u0439 \u043A\u043E\u0434." }, 400);
+    }
+    if (savedRecord.code !== code.trim()) {
+      return c.json({ error: "\u041D\u0435\u0432\u0435\u0440\u043D\u044B\u0439 \u043F\u0440\u043E\u0432\u0435\u0440\u043E\u0447\u043D\u044B\u0439 \u043A\u043E\u0434" }, 400);
+    }
+    const newPasswordHash = await bcrypt.hash(newPassword, 10);
+    await db.update(users).set({ passwordHash: newPasswordHash }).where(eq(users.id, user.id));
+    resetCodeStore.delete(normalizedEmail);
+    try {
+      await db.insert(activityLogs).values({
+        id: randomUUID(),
+        userId: user.id,
+        action: "password_reset",
+        createdAt: (/* @__PURE__ */ new Date()).toISOString()
+      });
+    } catch {
+    }
+    return c.json({ message: "\u041F\u0430\u0440\u043E\u043B\u044C \u0443\u0441\u043F\u0435\u0448\u043D\u043E \u0438\u0437\u043C\u0435\u043D\u0451\u043D! \u0422\u0435\u043F\u0435\u0440\u044C \u0432\u044B \u043C\u043E\u0436\u0435\u0442\u0435 \u0432\u043E\u0439\u0442\u0438 \u0432 \u0441\u0438\u0441\u0442\u0435\u043C\u0443." });
+  } catch (error) {
+    console.error("Reset password error:", error);
+    return c.json({ error: "\u041E\u0448\u0438\u0431\u043A\u0430 \u0441\u0435\u0440\u0432\u0435\u0440\u0430 \u043F\u0440\u0438 \u043E\u0431\u043D\u043E\u0432\u043B\u0435\u043D\u0438\u0438 \u043F\u0430\u0440\u043E\u043B\u044F" }, 500);
+  }
+});
 auth.get("/goals", async (c) => {
   const userId = c.req.header("X-User-Id");
   if (!userId) return c.json({ error: "Unauthorized" }, 401);
@@ -700,15 +768,13 @@ admin.get("/stats", async (c) => {
 admin.get("/activity", async (c) => {
   try {
     const logs = await db.select({
-      userId: activityLogs.userId,
+      userId: users.id,
       userName: users.name,
       userEmail: users.email,
       userRole: users.role,
-      lastLogin: sql2`MAX(${activityLogs.createdAt})`.as("last_login"),
-      // <-- Последняя активность
-      requestCount: sql2`COUNT(*)`.as("request_count")
-      // <-- Количество входов
-    }).from(activityLogs).leftJoin(users, eq2(activityLogs.userId, users.id)).groupBy(activityLogs.userId, users.name, users.email, users.role).orderBy(sql2`MAX(${activityLogs.createdAt}) DESC`).limit(50);
+      lastLogin: sql2`COALESCE(MAX(${activityLogs.createdAt}), ${users.lastLogin}, ${users.createdAt})`.as("last_login"),
+      requestCount: sql2`COUNT(${activityLogs.id})`.as("request_count")
+    }).from(users).leftJoin(activityLogs, eq2(users.id, activityLogs.userId)).groupBy(users.id, users.name, users.email, users.role, users.createdAt, users.lastLogin).orderBy(sql2`COALESCE(MAX(${activityLogs.createdAt}), ${users.lastLogin}, ${users.createdAt}) DESC`).limit(100);
     return c.json(logs);
   } catch (error) {
     console.error("Fetch activity error:", error);

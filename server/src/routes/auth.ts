@@ -102,6 +102,97 @@ auth.post('/login', zValidator('json', loginSchema), async (c) => {
   }
 });
 
+// --- СБРОС И ВОССТАНОВЛЕНИЕ ПАРОЛЯ ---
+const resetCodeStore = new Map<string, { code: string; expiresAt: number }>();
+
+const forgotPasswordSchema = z.object({
+  email: z.string().email('Некорректный email'),
+});
+
+const resetPasswordSchema = z.object({
+  email: z.string().email('Некорректный email'),
+  code: z.string().min(4, 'Введите код подтверждения'),
+  newPassword: z.string().min(6, 'Пароль должен быть не менее 6 символов'),
+});
+
+auth.post('/forgot-password', zValidator('json', forgotPasswordSchema), async (c) => {
+  try {
+    const { email } = c.req.valid('json');
+    const normalizedEmail = email.trim().toLowerCase();
+    const user = await db.select().from(users).where(eq(users.email, normalizedEmail)).get();
+
+    if (!user) {
+      return c.json({ error: 'Пользователь с таким email не найден' }, 404);
+    }
+
+    // Генерируем 6-значный код (действует 15 минут)
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = Date.now() + 15 * 60 * 1000;
+
+    resetCodeStore.set(normalizedEmail, { code, expiresAt });
+
+    console.log(`🔑 Код восстановления пароля для ${normalizedEmail}: ${code}`);
+
+    return c.json({
+      message: 'Код для восстановления пароля успешно сформирован',
+      email: normalizedEmail,
+      code,
+    });
+  } catch (error) {
+    console.error('Forgot password error:', error);
+    return c.json({ error: 'Ошибка сервера при сбросе пароля' }, 500);
+  }
+});
+
+auth.post('/reset-password', zValidator('json', resetPasswordSchema), async (c) => {
+  try {
+    const { email, code, newPassword } = c.req.valid('json');
+    const normalizedEmail = email.trim().toLowerCase();
+    const user = await db.select().from(users).where(eq(users.email, normalizedEmail)).get();
+
+    if (!user) {
+      return c.json({ error: 'Пользователь не найден' }, 404);
+    }
+
+    const savedRecord = resetCodeStore.get(normalizedEmail);
+    if (!savedRecord) {
+      return c.json({ error: 'Запрос на сброс пароля не найден или устарел. Запросите код заново.' }, 400);
+    }
+
+    if (Date.now() > savedRecord.expiresAt) {
+      resetCodeStore.delete(normalizedEmail);
+      return c.json({ error: 'Срок действия кода истёк. Запросите новый код.' }, 400);
+    }
+
+    if (savedRecord.code !== code.trim()) {
+      return c.json({ error: 'Неверный проверочный код' }, 400);
+    }
+
+    // Хешируем новый пароль и сохраняем
+    const newPasswordHash = await bcrypt.hash(newPassword, 10);
+    await db.update(users).set({ passwordHash: newPasswordHash }).where(eq(users.id, user.id));
+
+    resetCodeStore.delete(normalizedEmail);
+
+    // Записываем активность
+    try {
+      await db.insert(activityLogs).values({
+        id: randomUUID(),
+        userId: user.id,
+        action: 'password_reset',
+        createdAt: new Date().toISOString(),
+      });
+    } catch {
+      // ignore
+    }
+
+    return c.json({ message: 'Пароль успешно изменён! Теперь вы можете войти в систему.' });
+  } catch (error) {
+    console.error('Reset password error:', error);
+    return c.json({ error: 'Ошибка сервера при обновлении пароля' }, 500);
+  }
+});
+
 // --- ЦЕЛИ ---
 
 auth.get('/goals', async (c) => {

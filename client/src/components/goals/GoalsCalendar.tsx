@@ -9,7 +9,7 @@ import {
 import { ru } from 'date-fns/locale';
 import { 
   ChevronLeft, ChevronRight, Target, CheckCircle2, 
-  Calendar as CalendarIcon, Clock, Check, ListFilter
+  Calendar as CalendarIcon, Clock, Check, ListFilter, Search, X
 } from 'lucide-react';
 import { cn } from '@/utils/cn';
 import type { Goal } from '@/types/goal';
@@ -25,6 +25,7 @@ export function GoalsCalendar({ onSelectGoal }: GoalsCalendarProps) {
   const [currentMonth, setCurrentMonth] = React.useState<Date>(new Date());
   const [selectedDate, setSelectedDate] = React.useState<Date>(new Date());
   const [filterType, setFilterType] = React.useState<'all' | 'deadlines' | 'completed'>('all');
+  const [searchQuery, setSearchQuery] = React.useState('');
 
   // Переход по месяцам
   const nextMonth = () => setCurrentMonth(addMonths(currentMonth, 1));
@@ -60,28 +61,88 @@ export function GoalsCalendar({ onSelectGoal }: GoalsCalendarProps) {
     };
   }, [goals, currentMonth]);
 
+  // Нормализованный поисковый запрос
+  const normalizedQuery = searchQuery.trim().toLowerCase();
+
+  const matchesGoal = React.useCallback((g: Goal) => {
+    if (!normalizedQuery) return true;
+    return (
+      g.title.toLowerCase().includes(normalizedQuery) ||
+      (g.description ? g.description.toLowerCase().includes(normalizedQuery) : false) ||
+      (g.category ? g.category.toLowerCase().includes(normalizedQuery) : false)
+    );
+  }, [normalizedQuery]);
+
+  const matchesTask = React.useCallback((t: { title: string; description?: string }) => {
+    if (!normalizedQuery) return true;
+    return (
+      t.title.toLowerCase().includes(normalizedQuery) ||
+      (t.description ? t.description.toLowerCase().includes(normalizedQuery) : false)
+    );
+  }, [normalizedQuery]);
+
   // Цели и задачи на выбранный день
   const selectedDateStr = toISODateString(selectedDate);
 
   const selectedDayItems = React.useMemo(() => {
     // 1. Цели со сроком (дедлайн) на этот день
-    const deadlineGoals = goals.filter(g => g.targetDate === selectedDateStr);
+    const deadlineGoals = goals.filter(g => g.targetDate === selectedDateStr && matchesGoal(g));
     
     // 2. Цели, выполненные в этот день (по completedAt или status === completed)
     const completedGoals = goals.filter(g => 
-      (g.completedAt && toISODateString(parseISO(g.completedAt)) === selectedDateStr) ||
-      (g.status === 'completed' && g.targetDate === selectedDateStr && !g.completedAt)
+      ((g.completedAt && toISODateString(parseISO(g.completedAt)) === selectedDateStr) ||
+      (g.status === 'completed' && g.targetDate === selectedDateStr && !g.completedAt)) &&
+      matchesGoal(g)
     );
 
     // 3. Задачи, назначенные на этот день
-    const dayTasks = tasks.filter(t => t.dueDate === selectedDateStr);
+    const dayTasks = tasks.filter(t => t.dueDate === selectedDateStr && matchesTask(t));
 
     return {
       deadlineGoals,
       completedGoals,
       dayTasks,
     };
-  }, [goals, tasks, selectedDateStr]);
+  }, [goals, tasks, selectedDateStr, matchesGoal, matchesTask]);
+
+  // Результаты поиска по всем датам для быстрых переходов
+  const searchResults = React.useMemo(() => {
+    if (!normalizedQuery) return [];
+
+    const results: { id: string; title: string; date: string; type: 'deadline' | 'completed' | 'task' }[] = [];
+
+    goals.forEach(g => {
+      if (matchesGoal(g)) {
+        if (g.targetDate) {
+          results.push({ id: `goal-dl-${g.id}`, title: g.title, date: g.targetDate, type: 'deadline' });
+        }
+        if (g.completedAt) {
+          const compDate = toISODateString(parseISO(g.completedAt));
+          if (compDate !== g.targetDate) {
+            results.push({ id: `goal-comp-${g.id}`, title: g.title, date: compDate, type: 'completed' });
+          }
+        }
+      }
+    });
+
+    tasks.forEach(t => {
+      if (t.dueDate && matchesTask(t)) {
+        results.push({ id: `task-${t.id}`, title: t.title, date: t.dueDate, type: 'task' });
+      }
+    });
+
+    return results.sort((a, b) => a.date.localeCompare(b.date));
+  }, [normalizedQuery, goals, tasks, matchesGoal, matchesTask]);
+
+  const jumpToDate = (dateStr: string) => {
+    try {
+      const d = parseISO(dateStr);
+      setSelectedDate(d);
+      setCurrentMonth(d);
+    } catch {
+      // ignore
+    }
+  };
 
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
@@ -164,6 +225,68 @@ export function GoalsCalendar({ onSelectGoal }: GoalsCalendarProps) {
         </div>
       </div>
 
+      {/* СТРОКА ПОИСКА */}
+      <div className="relative">
+        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+        <input
+          type="text"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="Поиск по названию цели или задачи..."
+          className="w-full pl-9 pr-9 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm transition-all"
+        />
+        {searchQuery && (
+          <button
+            onClick={() => setSearchQuery('')}
+            className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-full"
+            title="Очистить поиск"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        )}
+      </div>
+
+      {/* РЕЗУЛЬТАТЫ ПОИСКА (БЫСТРЫЕ ПЕРЕХОДЫ) */}
+      {normalizedQuery && (
+        <div className="bg-indigo-50/60 dark:bg-indigo-950/30 border border-indigo-100 dark:border-indigo-900/50 rounded-xl p-3 text-xs animate-in fade-in duration-200">
+          <div className="font-semibold text-indigo-950 dark:text-indigo-200 mb-2 flex items-center justify-between">
+            <span>
+              Результаты поиска: {searchResults.length > 0 ? `найдено ${searchResults.length}` : 'совпадений не найдено'}
+            </span>
+            <span className="text-[11px] font-normal text-indigo-600 dark:text-indigo-400">
+              {searchResults.length > 0 && 'Кликните для перехода к дате'}
+            </span>
+          </div>
+
+          {searchResults.length > 0 ? (
+            <div className="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto pr-1">
+              {searchResults.map((item) => (
+                <button
+                  key={item.id}
+                  onClick={() => jumpToDate(item.date)}
+                  className={cn(
+                    "px-2.5 py-1 rounded-lg text-left transition-all border flex items-center gap-1.5",
+                    item.type === 'deadline' && "bg-white dark:bg-slate-800 border-indigo-200 dark:border-indigo-800 text-indigo-900 dark:text-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-900/50",
+                    item.type === 'completed' && "bg-white dark:bg-slate-800 border-emerald-200 dark:border-emerald-800 text-emerald-900 dark:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-900/50",
+                    item.type === 'task' && "bg-white dark:bg-slate-800 border-blue-200 dark:border-blue-800 text-blue-900 dark:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/50",
+                    selectedDateStr === item.date && "ring-2 ring-indigo-500 font-bold"
+                  )}
+                >
+                  <span className="font-semibold text-[10px] text-slate-500 dark:text-slate-400">
+                    {format(parseISO(item.date), 'dd.MM')}
+                  </span>
+                  <span className="truncate max-w-[150px] sm:max-w-[200px]">{item.title}</span>
+                </button>
+              ))}
+            </div>
+          ) : (
+            <p className="text-slate-500 dark:text-slate-400">
+              По запросу «{searchQuery}» целей или задач с датами не найдено.
+            </p>
+          )}
+        </div>
+      )}
+
       {/* СЕТКА КАЛЕНДАРЯ */}
       <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
         {/* Заголовки дней недели (Пн, Вт, Ср...) */}
@@ -184,14 +307,17 @@ export function GoalsCalendar({ onSelectGoal }: GoalsCalendarProps) {
             const isSelected = isSameDay(day, selectedDate);
 
             // Цели со сроком в этот день
-            const dayDeadlines = goals.filter(g => g.targetDate === dayIso && g.status !== 'completed');
+            const dayDeadlines = goals.filter(g => g.targetDate === dayIso && g.status !== 'completed' && matchesGoal(g));
             // Выполненные цели в этот день
             const dayCompleted = goals.filter(g => 
-              (g.completedAt && toISODateString(parseISO(g.completedAt)) === dayIso) ||
-              (g.status === 'completed' && g.targetDate === dayIso)
+              ((g.completedAt && toISODateString(parseISO(g.completedAt)) === dayIso) ||
+              (g.status === 'completed' && g.targetDate === dayIso)) &&
+              matchesGoal(g)
             );
             // Задачи в этот день
-            const dayTasksCount = tasks.filter(t => t.dueDate === dayIso).length;
+            const dayTasksCount = tasks.filter(t => t.dueDate === dayIso && matchesTask(t)).length;
+
+            const isSearchMatch = Boolean(normalizedQuery && (dayDeadlines.length > 0 || dayCompleted.length > 0 || dayTasksCount > 0));
 
             const showDeadlines = filterType === 'all' || filterType === 'deadlines';
             const showCompleted = filterType === 'all' || filterType === 'completed';
@@ -209,7 +335,9 @@ export function GoalsCalendar({ onSelectGoal }: GoalsCalendarProps) {
                   !isCurrentMonth && "bg-slate-50/50 dark:bg-slate-900/30 opacity-40",
                   isSelected 
                     ? "bg-indigo-50/70 dark:bg-indigo-950/40 ring-2 ring-inset ring-indigo-500" 
-                    : "hover:bg-slate-50 dark:hover:bg-slate-700/60",
+                    : isSearchMatch
+                      ? "bg-amber-50/50 dark:bg-amber-950/25 ring-2 ring-inset ring-amber-400 dark:ring-amber-500/70"
+                      : "hover:bg-slate-50 dark:hover:bg-slate-700/60",
                   isCurrentDay && !isSelected && "bg-blue-50/30 dark:bg-blue-950/20"
                 )}
               >

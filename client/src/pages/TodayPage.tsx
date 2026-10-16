@@ -6,16 +6,19 @@ import { DailyFocus } from '@/components/today/DailyFocus';
 import { TaskItem } from '@/components/today/TaskItem';
 import { QuickTaskInput } from '@/components/today/QuickTaskInput';
 import { ProgressBar } from '@/components/common/ProgressBar';
+import { TaskEditModal } from '@/components/goals/TaskEditModal';
 import { toISODateString, formatDate } from '@/utils/date';
 import { CalendarDays, CheckCircle2, Target } from 'lucide-react';
 import { cn } from '@/utils/cn';
 import confetti from 'canvas-confetti';
+import type { Task } from '@/types/task';
 
 export function TodayPage() {
   const today = toISODateString(new Date());
   
   const { tasks, fetchTasks } = useTaskStore();
   const { goals, fetchGoals, updateGoal } = useGoalStore();
+  const [editingTask, setEditingTask] = React.useState<Task | null>(null);
 
   React.useEffect(() => {
     Promise.all([fetchTasks(), fetchGoals()]);
@@ -207,12 +210,23 @@ export function TodayPage() {
           <ul className="space-y-3">
             {todaysTasks.map((task) => (
               <li key={task.id}>
-                <TaskItem task={task} onToggleFocus={useTaskStore.getState().toggleDailyFocus} />
+                <TaskItem 
+                  task={task} 
+                  onToggleFocus={useTaskStore.getState().toggleDailyFocus} 
+                  onEdit={(t) => setEditingTask(t)}
+                />
               </li>
             ))}
           </ul>
         )}
       </section>
+
+      {/* Модальное окно редактирования задачи */}
+      <TaskEditModal 
+        isOpen={!!editingTask} 
+        onClose={() => setEditingTask(null)} 
+        task={editingTask} 
+      />
     </div>
   );
 }

@@ -1,9 +1,9 @@
-// client/src/pages/LoginPage.tsx
 import * as React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Target, Eye, EyeOff, Loader2 } from 'lucide-react';
 import { cn } from '@/utils/cn';
 import { API_BASE } from '@/config/api';
+import { ForgotPasswordModal } from '@/components/auth/ForgotPasswordModal';
 
 export function LoginPage() {
   const navigate = useNavigate();
@@ -11,6 +11,7 @@ export function LoginPage() {
   const [password, setPassword] = React.useState('');
   const [showPassword, setShowPassword] = React.useState(false);
   const [isLoading, setIsLoading] = React.useState(false);
+  const [isForgotOpen, setIsForgotOpen] = React.useState(false);
   const [error, setError] = React.useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -125,12 +126,21 @@ export function LoginPage() {
           </form>
 
           {/* Подвал формы */}
-          <div className="mt-8 text-center">
+          <div className="mt-8 text-center space-y-2.5">
             <p className="text-slate-400 text-sm">
               Нет аккаунта?{' '}
               <Link to="/register" className="text-indigo-400 hover:text-indigo-300 font-medium transition-colors">
                 Зарегистрироваться
               </Link>
+            </p>
+            <p className="text-sm">
+              <button
+                type="button"
+                onClick={() => setIsForgotOpen(true)}
+                className="text-indigo-400 hover:text-indigo-300 font-medium transition-colors"
+              >
+                Забыли пароль?
+              </button>
             </p>
           </div>
         </div>
@@ -140,6 +150,12 @@ export function LoginPage() {
           © 2026 Goal Tracker AI. Все права защищены.
         </p>
       </div>
+
+      <ForgotPasswordModal
+        isOpen={isForgotOpen}
+        onClose={() => setIsForgotOpen(false)}
+        defaultEmail={email}
+      />
     </div>
   );
 }

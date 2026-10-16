@@ -401,10 +401,10 @@ export function AdminPage() {
           <div className="p-4 sm:p-6 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center gap-2">
             <h3 className="text-base sm:text-lg font-semibold text-slate-900 dark:text-white flex items-center gap-2 truncate">
               <LogIn className="h-5 w-5 text-blue-500 shrink-0" /> 
-              <span>Журнал входов</span>
+              <span>Активность пользователей</span>
             </h3>
             <span className="text-xs text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-700/50 px-2.5 py-1 rounded-full border border-slate-200 dark:border-slate-600 whitespace-nowrap shrink-0">
-              Записей: {activityLogs.length}
+              Пользователей: {activityLogs.length}
             </span>
           </div>
 
@@ -415,9 +415,9 @@ export function AdminPage() {
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
                     <h4 className="font-semibold text-slate-900 dark:text-white truncate">
-                      {log.userName || 'Неизвестный'}
+                      {log.userName || (log.userEmail ? log.userEmail.split('@')[0] : 'Пользователь')}
                     </h4>
-                    <p className="text-xs text-slate-500 dark:text-slate-400 truncate">{log.userEmail}</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 truncate">{log.userEmail || '—'}</p>
                   </div>
                   <span className={cn(
                     "inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium border shrink-0",
@@ -425,16 +425,16 @@ export function AdminPage() {
                       ? "bg-purple-100 text-purple-800 border-purple-200 dark:bg-purple-900/40 dark:text-purple-300 dark:border-purple-700/50" 
                       : "bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-700/80 dark:text-slate-200 dark:border-slate-600"
                   )}>
-                    {log.userRole}
+                    {log.userRole || 'user'}
                   </span>
                 </div>
                 <div className="text-xs text-slate-400 dark:text-slate-500 flex items-center justify-between pt-1">
-                  <span>Вход в систему</span>
-                  <span>{new Date(log.lastLogin).toLocaleString('ru-RU')}</span>
+                  <span>Последняя активность</span>
+                  <span>{log.lastLogin ? new Date(log.lastLogin).toLocaleString('ru-RU') : '—'}</span>
                 </div>
               </div>
             )) : (
-              <div className="p-8 text-center text-slate-400 text-sm">Нет данных о входах.</div>
+              <div className="p-8 text-center text-slate-400 text-sm">Нет данных о пользователях.</div>
             )}
           </div>
 
@@ -452,8 +452,10 @@ export function AdminPage() {
               <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
                 {activityLogs.length > 0 ? activityLogs.map((log, index) => (
                   <tr key={index} className="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
-                    <td className="px-6 py-4 font-medium text-slate-900 dark:text-white">{log.userName || 'Unknown'}</td>
-                    <td className="px-6 py-4 text-slate-600 dark:text-slate-300">{log.userEmail}</td>
+                    <td className="px-6 py-4 font-medium text-slate-900 dark:text-white">
+                      {log.userName || (log.userEmail ? log.userEmail.split('@')[0] : 'Пользователь')}
+                    </td>
+                    <td className="px-6 py-4 text-slate-600 dark:text-slate-300">{log.userEmail || '—'}</td>
                     <td className="px-6 py-4">
                       <span className={cn(
                         "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border",
@@ -461,10 +463,12 @@ export function AdminPage() {
                           ? "bg-purple-100 text-purple-800 border-purple-200 dark:bg-purple-900/40 dark:text-purple-300 dark:border-purple-700/50" 
                           : "bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-700/80 dark:text-slate-200 dark:border-slate-600"
                       )}>
-                        {log.userRole}
+                        {log.userRole || 'user'}
                       </span>
                     </td>
-                    <td className="px-6 py-4 text-slate-600 dark:text-slate-300">{new Date(log.lastLogin).toLocaleString('ru-RU')}</td>
+                    <td className="px-6 py-4 text-slate-600 dark:text-slate-300">
+                      {log.lastLogin ? new Date(log.lastLogin).toLocaleString('ru-RU') : '—'}
+                    </td>
                   </tr>
                 )) : (
                   <tr><td colSpan={4} className="px-6 py-8 text-center text-slate-500 dark:text-slate-400">Нет данных о входах.</td></tr>

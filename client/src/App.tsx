@@ -12,6 +12,8 @@ import { RegisterPage } from '@/pages/RegisterPage';
 import { AdminPage } from '@/pages/AdminPage';
 import { OnboardingTour } from '@/components/onboarding/OnboardingTour';
 import { Toast } from '@/components/common/Toast';
+import { GoalCelebrationModal } from '@/components/goals/GoalCelebrationModal';
+import { ProgressReminderBanner } from '@/components/common/ProgressReminderBanner';
 import { useGoalStore } from '@/store/useGoalStore';
 import { useTaskStore } from '@/store/useTaskStore';
 import { useCategoryStore } from '@/store/useCategoryStore';
@@ -58,8 +60,8 @@ function AppContent() {
       {/* УСЛОВНЫЙ РЕНДЕРИНГ: Показываем Navbar только если это НЕ страница авторизации */}
       {!isAuthPage && <Navbar />}
       
-      {/* УСЛОВНЫЙ ОТСТУП: Учитываем мобильный верхний хедер и нижнюю панель навигации */}
-      <main className={!isAuthPage ? "pt-16 pb-24 md:pt-6 md:pb-6 md:pl-72" : ""}>
+      {/* УСЛОВНЫЙ ОТСТУП: Учитываем мобильный верхний хедер (включая safe-area на iOS) и нижнюю панель навигации */}
+      <main className={!isAuthPage ? "pt-[calc(3.5rem+env(safe-area-inset-top,0px))] pb-24 md:pt-6 md:pb-6 md:pl-72" : ""}>
         {!isAuthPage && Boolean(localStorage.getItem('user')) && <OnboardingTour />}
         <Routes>
           {/* Публичные маршруты */}
@@ -84,6 +86,9 @@ function AppContent() {
         isVisible={!!toastMessage} 
         onClose={() => setToastMessage(null)} 
       />
+
+      <GoalCelebrationModal />
+      <ProgressReminderBanner />
     </div>
   );
 }

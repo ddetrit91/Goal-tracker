@@ -29,12 +29,17 @@ interface GoalState {
   getChildren: (parentId: string) => Goal[];
   getByHorizon: (horizon: Goal['horizon']) => Goal[];
   toggleTodayGoal: (id: string) => Promise<void>; // <-- ДОБАВЛЕНО ОДИН РАЗ
+  duplicateGoal: (goalId: string) => Promise<Goal>;
+  celebratingGoal: Goal | null;
+  setCelebratingGoal: (goal: Goal | null) => void;
 }
 
 export const useGoalStore = create<GoalState>((set, get) => ({
   goals: [],
   isLoading: false,
   error: null,
+  celebratingGoal: null,
+  setCelebratingGoal: (goal) => set({ celebratingGoal: goal }),
 
   fetchGoals: async () => {
     const userId = getUserId();
@@ -109,7 +114,15 @@ export const useGoalStore = create<GoalState>((set, get) => ({
       }
 
       const updated = await res.json();
-      
+      const previousGoal = get().goals.find((g) => g.id === id);
+      const isNewlyCompleted = 
+        (data.status === 'completed' && previousGoal?.status !== 'completed') ||
+        (data.progress === 100 && (previousGoal?.progress ?? 0) < 100 && previousGoal?.status !== 'completed');
+
+      if (isNewlyCompleted) {
+        set({ celebratingGoal: { ...(previousGoal || {}), ...updated, status: 'completed', progress: 100 } });
+      }
+
       set((state) => ({
         goals: state.goals.map((g) => g.id === id ? { ...g, ...updated } : g)
       }));
@@ -259,18 +272,39 @@ export const useGoalStore = create<GoalState>((set, get) => ({
       }, 0);
       newProgress = Math.min(100, Math.max(0, Math.round((tasksProgress + goalsProgress) / totalItems)));
     } else {
-      newProgress = parent.status === 'completed' ? 100 : 0;
+      newProgress = parent.status === 'completed' ? 100 : (parent.progress ?? 0);
     }
 
-    if (parent.progress !== newProgress) {
+    // Автоматическое определение статуса при наличии подзадач/подцелей:
+    // если 100% - статус переводится в completed, если меньше 100% и был completed - возвращается в in_progress
+    let targetStatus = parent.status;
+    let targetCompletedAt = parent.completedAt;
+
+    if (totalItems > 0) {
+      if (newProgress === 100 && parent.status !== 'completed') {
+        targetStatus = 'completed';
+        targetCompletedAt = new Date().toISOString();
+        set({ celebratingGoal: { ...parent, status: 'completed', progress: 100 } });
+      } else if (newProgress < 100 && parent.status === 'completed') {
+        targetStatus = 'in_progress';
+        targetCompletedAt = null;
+      }
+    }
+
+    const hasProgressChanged = parent.progress !== newProgress;
+    const hasStatusChanged = parent.status !== targetStatus;
+
+    if (hasProgressChanged || hasStatusChanged) {
       // Реактивно обновляем локальное состояние
       set((state) => ({
         goals: state.goals.map((g) =>
-          g.id === goalId ? { ...g, progress: newProgress } : g
+          g.id === goalId 
+            ? { ...g, progress: newProgress, status: targetStatus, completedAt: targetCompletedAt } 
+            : g
         ),
       }));
 
-      // Сохраняем прогресс на сервере
+      // Сохраняем прогресс и статус на сервере
       const userId = getUserId();
       if (userId) {
         await fetch(`${API_BASE}/goals/${goalId}`, {
@@ -279,8 +313,12 @@ export const useGoalStore = create<GoalState>((set, get) => ({
             'Content-Type': 'application/json',
             'X-User-Id': userId,
           },
-          body: JSON.stringify({ progress: newProgress }),
-        }).catch((err) => console.error('Failed to persist progress:', err));
+          body: JSON.stringify({ 
+            progress: newProgress,
+            status: targetStatus,
+            completedAt: targetCompletedAt,
+          }),
+        }).catch((err) => console.error('Failed to persist progress/status:', err));
       }
 
       // Рекурсивно пересчитываем родительскую цель на всех уровнях
@@ -296,5 +334,53 @@ export const useGoalStore = create<GoalState>((set, get) => ({
 
   getByHorizon: (horizon) => {
     return get().goals.filter((g) => g.horizon === horizon);
+  },
+
+  duplicateGoal: async (goalId) => {
+    const { goals, createGoal } = get();
+    const sourceGoal = goals.find((g) => g.id === goalId);
+    if (!sourceGoal) throw new Error('Goal not found');
+
+    const createdGoal = await createGoal({
+      title: `${sourceGoal.title} (копия)`,
+      description: sourceGoal.description || '',
+      horizon: sourceGoal.horizon,
+      category: sourceGoal.category,
+      status: 'backlog',
+      priority: sourceGoal.priority,
+      startDate: sourceGoal.startDate,
+      targetDate: sourceGoal.targetDate,
+      completedAt: null,
+      progress: 0,
+      isProgressCalculated: sourceGoal.isProgressCalculated,
+      estimatedCost: sourceGoal.estimatedCost,
+      currency: sourceGoal.currency,
+      parentId: sourceGoal.parentId,
+      isTodayGoal: false,
+    });
+
+    // Копируем непосредственные задачи исходной цели
+    const taskStore = useTaskStore.getState();
+    const sourceTasks = taskStore.tasks.filter((t) => t.goalId === goalId);
+    for (const task of sourceTasks) {
+      await taskStore.createTask({
+        title: task.title,
+        description: task.description || '',
+        horizon: task.horizon,
+        goalId: createdGoal.id,
+        category: task.category,
+        dueDate: task.dueDate,
+        priority: task.priority,
+        estimatedMinutes: task.estimatedMinutes,
+        isRecurring: task.isRecurring,
+        recurrenceRule: task.recurrenceRule,
+        isCompleted: false,
+        completedAt: null,
+        isDailyFocus: false,
+        tags: task.tags || [],
+      });
+    }
+
+    return createdGoal;
   },
 }));

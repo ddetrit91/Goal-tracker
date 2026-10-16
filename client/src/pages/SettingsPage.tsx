@@ -1,7 +1,10 @@
 import * as React from 'react';
 import { Button } from '@/components/common/Button';
-import { Download, Upload, RefreshCw, AlertTriangle } from 'lucide-react';
+import { Download, Upload, RefreshCw, AlertTriangle, FileSpreadsheet } from 'lucide-react';
 import type { IBackupData } from '@/services/storage/storage.interface';
+import { ExportExcelModal } from '@/components/analytics/ExportExcelModal';
+import { useGoalStore } from '@/store/useGoalStore';
+import { useTaskStore } from '@/store/useTaskStore';
 
 import { API_BASE } from '@/config/api';
 
@@ -14,6 +17,9 @@ const getUserId = () => {
 };
 
 export function SettingsPage() {
+  const { goals } = useGoalStore();
+  const { tasks } = useTaskStore();
+  const [isExcelModalOpen, setIsExcelModalOpen] = React.useState(false);
   const [isImporting, setIsImporting] = React.useState(false);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
@@ -132,32 +138,42 @@ export function SettingsPage() {
           {/* <-- ДОБАВЛЕНО: dark:text-slate-200 для заголовка секции */}
           <h2 className="text-lg font-semibold text-slate-900 mb-4 dark:text-slate-200">Резервное копирование</h2>
           
-          <div className="flex flex-col sm:flex-row gap-4">
-            <Button onClick={handleExport} variant="outline" className="gap-2 flex-1 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700">
-              <Download className="h-4 w-4" />
-              Скачать бэкап (JSON)
-            </Button>
-            
-            <Button 
-              onClick={handleImportClick} 
-              variant="outline" 
-              className="gap-2 flex-1 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700"
-              isLoading={isImporting}
+          <div className="flex flex-col gap-3">
+            <Button
+              onClick={() => setIsExcelModalOpen(true)}
+              className="gap-2 w-full bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm"
             >
-              <Upload className="h-4 w-4" />
-              Восстановить из файла
+              <FileSpreadsheet className="h-4 w-4" />
+              Выгрузить данные в Excel (.xlsx)
             </Button>
-            <input
-              type="file"
-              ref={fileInputRef}
-              onChange={handleFileChange}
-              accept=".json"
-              className="hidden"
-            />
+
+            <div className="flex flex-col sm:flex-row gap-3">
+              <Button onClick={handleExport} variant="outline" className="gap-2 flex-1 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700">
+                <Download className="h-4 w-4" />
+                Скачать бэкап (JSON)
+              </Button>
+              
+              <Button 
+                onClick={handleImportClick} 
+                variant="outline" 
+                className="gap-2 flex-1 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700"
+                isLoading={isImporting}
+              >
+                <Upload className="h-4 w-4" />
+                Восстановить из файла
+              </Button>
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileChange}
+                accept=".json"
+                className="hidden"
+              />
+            </div>
           </div>
           {/* <-- ДОБАВЛЕНО: dark:text-slate-400 для описания */}
           <p className="text-xs text-slate-500 mt-3 dark:text-slate-400">
-            Экспортируйте данные регулярно, чтобы не потерять прогресс при смене устройства.
+            Экспортируйте данные в Excel для удобной аналитики или сохраняйте JSON-бэкапы, чтобы не потерять прогресс.
           </p>
         </div>
 
@@ -190,6 +206,13 @@ export function SettingsPage() {
           <p className="text-xs text-slate-300 mt-1 dark:text-slate-600">Built with React 19 & Vite</p>
         </div>
       </section>
+
+      <ExportExcelModal
+        isOpen={isExcelModalOpen}
+        onClose={() => setIsExcelModalOpen(false)}
+        goals={goals}
+        tasks={tasks}
+      />
     </div>
   );
 }

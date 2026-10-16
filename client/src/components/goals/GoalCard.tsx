@@ -5,7 +5,8 @@ import { useTaskStore } from '@/store/useTaskStore';
 import { ProgressBar } from '@/components/common/ProgressBar';
 import { CategoryBadge } from '@/components/common/CategoryBadge';
 import { TaskItem } from '@/components/today/TaskItem';
-import { ChevronDown, ChevronRight, Plus, Pencil, Trash2, Star, Calendar } from 'lucide-react';
+import { TaskEditModal } from '@/components/goals/TaskEditModal';
+import { ChevronDown, ChevronRight, Plus, Pencil, Trash2, Star, Calendar, Copy } from 'lucide-react';
 import { cn } from '@/utils/cn';
 import { parseISO, differenceInDays, format } from 'date-fns';
 import { ru } from 'date-fns/locale';
@@ -19,18 +20,38 @@ interface GoalCardProps {
   onAddSubgoal?: (parentId: string) => void;
   onEditGoal?: (goal: Goal) => void;
   onDeleteGoal?: (id: string) => void;
+  onDuplicateGoal?: (goalId: string) => void;
   tasks?: Task[];
 }
 
-export function GoalCard({ goal, level = 0, onAddSubgoal, onEditGoal, onDeleteGoal, tasks }: GoalCardProps) {
+export function GoalCard({ goal, level = 0, onAddSubgoal, onEditGoal, onDeleteGoal, onDuplicateGoal, tasks }: GoalCardProps) {
   const [isExpanded, setIsExpanded] = React.useState(false);
   const [isAddingTask, setIsAddingTask] = React.useState(false);
   const [newTaskTitle, setNewTaskTitle] = React.useState('');
   const [isTaskForToday, setIsTaskForToday] = React.useState(false);
   const [isSubmittingTask, setIsSubmittingTask] = React.useState(false);
+  const [editingTask, setEditingTask] = React.useState<Task | null>(null);
 
-  const { goals, getChildren, toggleTodayGoal } = useGoalStore();
+  const { goals, getChildren, toggleTodayGoal, duplicateGoal } = useGoalStore();
   const { tasks: allStoreTasks, createTask, toggleDailyFocus } = useTaskStore();
+
+  const handleDuplicateGoal = async () => {
+    try {
+      if (onDuplicateGoal) {
+        onDuplicateGoal(goal.id);
+      } else {
+        await duplicateGoal(goal.id);
+        window.dispatchEvent(
+          new CustomEvent('show-toast', { detail: { message: 'Цель продублирована!' } })
+        );
+      }
+    } catch (err: any) {
+      console.error('Failed to duplicate goal:', err);
+      window.dispatchEvent(
+        new CustomEvent('show-toast', { detail: { message: 'Не удалось продублировать цель' } })
+      );
+    }
+  };
 
   // Проверяем, является ли эта цель или любая из её родительских целью дня
   const isGoalForToday = React.useMemo(() => {
@@ -102,24 +123,30 @@ export function GoalCard({ goal, level = 0, onAddSubgoal, onEditGoal, onDeleteGo
     <div className={cn('mb-4 group/card', level > 0 && 'ml-2 sm:ml-6 border-l-2 border-slate-100 pl-2 sm:pl-4 dark:border-slate-700')}>
       <div className="rounded-xl border border-slate-200 bg-white p-3.5 sm:p-4 shadow-sm transition-all hover:shadow-md relative dark:bg-slate-800 dark:border-slate-700 dark:hover:shadow-none">
         
-        {/* Кнопки действий */}
-        {(onEditGoal || onDeleteGoal) && (
-          <div className="absolute top-3 right-3 sm:top-4 sm:right-4 flex gap-1 opacity-100 md:opacity-0 md:group-hover/card:opacity-100 transition-opacity">
-            {onEditGoal && (
-              <button onClick={() => onEditGoal(goal)} className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors dark:hover:text-indigo-400 dark:hover:bg-indigo-900/20" title="Редактировать">
-                <Pencil className="h-4 w-4" />
-              </button>
-            )}
-            {onDeleteGoal && (
-              <button onClick={() => { if (window.confirm(`Удалить цель "${goal.title}"?`)) onDeleteGoal(goal.id); }} 
-                className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors dark:hover:text-red-400 dark:hover:bg-red-900/20" title="Удалить">
-                <Trash2 className="h-4 w-4" />
-              </button>
-            )}
-          </div>
-        )}
+        {/* Кнопки действий: карандаш, корзина, а под ней дублирование */}
+        <div className="absolute top-3 right-3 sm:top-4 sm:right-4 flex flex-col gap-1 opacity-100 md:opacity-0 md:group-hover/card:opacity-100 transition-opacity z-10">
+          {onEditGoal && (
+            <button onClick={() => onEditGoal(goal)} className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors dark:hover:text-indigo-400 dark:hover:bg-indigo-900/20" title="Редактировать">
+              <Pencil className="h-4 w-4" />
+            </button>
+          )}
+          {onDeleteGoal && (
+            <button onClick={() => { if (window.confirm(`Удалить цель "${goal.title}"?`)) onDeleteGoal(goal.id); }} 
+              className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors dark:hover:text-red-400 dark:hover:bg-red-900/20" title="Удалить">
+              <Trash2 className="h-4 w-4" />
+            </button>
+          )}
+          {/* Кнопка дублирования под иконкой корзины */}
+          <button 
+            onClick={handleDuplicateGoal} 
+            className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors dark:hover:text-indigo-400 dark:hover:bg-indigo-900/20" 
+            title="Дублировать цель"
+          >
+            <Copy className="h-4 w-4" />
+          </button>
+        </div>
 
-        <div className="flex items-start gap-2 md:gap-3 md:pr-16">
+        <div className="flex items-start gap-2 md:gap-3 md:pr-12">
           {hasChildren ? (
             <button onClick={() => setIsExpanded(!isExpanded)} className="mt-1 text-slate-400 hover:text-indigo-600 transition-colors dark:text-slate-300 dark:hover:text-white shrink-0">
               {isExpanded ? <ChevronDown className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
@@ -131,8 +158,8 @@ export function GoalCard({ goal, level = 0, onAddSubgoal, onEditGoal, onDeleteGo
           )}
           
           <div className="flex-1 min-w-0">
-            {/* Заголовок цели и бейджи: отступ pr-14 только на мобильных, чтобы не перекрывать кнопки действий */}
-            <div className="flex items-center justify-between mb-2 flex-wrap gap-2 pr-14 md:pr-0">
+            {/* Заголовок цели и бейджи: исходный вид */}
+            <div className="flex items-center justify-between mb-2 flex-wrap gap-2 pr-12 md:pr-0">
               <h3 className="font-semibold text-slate-900 truncate dark:text-white">{goal.title}</h3>
               <div className="flex items-center gap-2">
                 
@@ -171,13 +198,13 @@ export function GoalCard({ goal, level = 0, onAddSubgoal, onEditGoal, onDeleteGo
                 <CategoryBadge category={goal.category} size="sm" />
                 
                 {goal.priority !== 'low' && (
-                    <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${
-                        goal.priority === 'critical' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300' :
-                        goal.priority === 'high' ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300' : 
-                        'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
-                    }`}>
-                        {goal.priority === 'critical' ? 'Крит' : goal.priority === 'high' ? 'Выс' : 'Сред'}
-                    </span>
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${
+                    goal.priority === 'critical' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300' :
+                    goal.priority === 'high' ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300' : 
+                    'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
+                  }`}>
+                    {goal.priority === 'critical' ? 'Крит' : goal.priority === 'high' ? 'Выс' : 'Сред'}
+                  </span>
                 )}
               </div>
             </div>
@@ -279,13 +306,25 @@ export function GoalCard({ goal, level = 0, onAddSubgoal, onEditGoal, onDeleteGo
             )}
 
             {childGoals.map((child) => (
-              <GoalCard key={child.id} goal={child} level={level + 1} onAddSubgoal={onAddSubgoal} onEditGoal={onEditGoal} onDeleteGoal={onDeleteGoal} />
+              <GoalCard 
+                key={child.id} 
+                goal={child} 
+                level={level + 1} 
+                onAddSubgoal={onAddSubgoal} 
+                onEditGoal={onEditGoal} 
+                onDeleteGoal={onDeleteGoal} 
+                onDuplicateGoal={onDuplicateGoal}
+              />
             ))}
             
-            {/* ОТОБРАЖЕНИЕ ЗАДАЧ С ЧЕКБОКСАМИ */}
+            {/* ОТОБРАЖЕНИЕ ЗАДАЧ С ЧЕКБОКСАМИ, КНОПКАМИ РЕДАКТИРОВАНИЯ И ДУБЛИРОВАНИЯ */}
             {relevantTasks.map((task) => (
               <div key={task.id} className="pl-2">
-                <TaskItem task={task} onToggleFocus={toggleDailyFocus} /> 
+                <TaskItem 
+                  task={task} 
+                  onToggleFocus={toggleDailyFocus} 
+                  onEdit={(t) => setEditingTask(t)}
+                /> 
               </div>
             ))}
 
@@ -295,6 +334,13 @@ export function GoalCard({ goal, level = 0, onAddSubgoal, onEditGoal, onDeleteGo
           </div>
         )}
       </div>
+
+      {/* Модальное окно редактирования задачи */}
+      <TaskEditModal 
+        isOpen={!!editingTask} 
+        onClose={() => setEditingTask(null)} 
+        task={editingTask} 
+      />
     </div>
   );
 }

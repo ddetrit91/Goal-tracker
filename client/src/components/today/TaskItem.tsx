@@ -2,20 +2,55 @@ import { useTaskStore } from '@/store/useTaskStore';
 import { useGoalStore } from '@/store/useGoalStore';
 import { cn } from '@/utils/cn';
 import { CategoryBadge } from '@/components/common/CategoryBadge';
-import { Star, Check, Trash2, Target } from 'lucide-react';
+import { Star, Check, Trash2, Target, Pencil, Copy } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import type { Task } from '@/types/task';
 
 interface TaskItemProps {
   task: Task;
   onToggleFocus?: (id: string) => void;
+  onEdit?: (task: Task) => void;
+  onDuplicate?: (task: Task) => void;
 }
 
-export function TaskItem({ task, onToggleFocus }: TaskItemProps) {
-  const { toggleComplete, deleteTask } = useTaskStore();
+export function TaskItem({ task, onToggleFocus, onEdit, onDuplicate }: TaskItemProps) {
+  const { toggleComplete, deleteTask, createTask } = useTaskStore();
   const { goals } = useGoalStore();
   
   const parentGoal = task.goalId ? goals.find((g) => g.id === task.goalId) : null;
+
+  const handleDuplicate = async () => {
+    if (onDuplicate) {
+      onDuplicate(task);
+      return;
+    }
+    try {
+      await createTask({
+        title: `${task.title} (копия)`,
+        description: task.description || '',
+        horizon: task.horizon,
+        goalId: task.goalId,
+        category: task.category,
+        dueDate: task.dueDate,
+        priority: task.priority,
+        estimatedMinutes: task.estimatedMinutes,
+        isRecurring: task.isRecurring,
+        recurrenceRule: task.recurrenceRule,
+        isCompleted: false,
+        completedAt: null,
+        isDailyFocus: task.isDailyFocus,
+        tags: task.tags || [],
+      });
+      window.dispatchEvent(
+        new CustomEvent('show-toast', { detail: { message: 'Задача продублирована!' } })
+      );
+    } catch (err: any) {
+      console.error('Duplicate task failed:', err);
+      window.dispatchEvent(
+        new CustomEvent('show-toast', { detail: { message: 'Не удалось продублировать задачу' } })
+      );
+    }
+  };
 
   const handleCheck = async () => {
     await toggleComplete(task.id);
@@ -85,30 +120,54 @@ export function TaskItem({ task, onToggleFocus }: TaskItemProps) {
 
         <div className="flex items-center gap-2 mt-2">
           <CategoryBadge category={task.category} size="sm" />
-          {onToggleFocus && (
+          <div className="ml-auto flex items-center gap-1">
+            {onToggleFocus && (
+              <button
+                onClick={() => onToggleFocus(task.id)}
+                className={cn(
+                  'p-1.5 rounded-full transition-colors',
+                  task.isDailyFocus
+                    ? 'text-amber-500 bg-amber-50 hover:bg-amber-100'
+                    : 'text-slate-400 hover:text-amber-500 hover:bg-slate-100',
+                  task.isDailyFocus 
+                    ? 'dark:bg-amber-900/20 dark:hover:bg-amber-900/40' 
+                    : 'dark:text-slate-500 dark:hover:text-amber-400 dark:hover:bg-slate-700'
+                )}
+                title="Сделать главным фокусом дня"
+              >
+                <Star className={cn('h-4 w-4', task.isDailyFocus && 'fill-current')} />
+              </button>
+            )}
+
+            {/* Кнопка дублирования задачи */}
             <button
-              onClick={() => onToggleFocus(task.id)}
-              className={cn(
-                'ml-auto p-1.5 rounded-full transition-colors',
-                task.isDailyFocus
-                  ? 'text-amber-500 bg-amber-50 hover:bg-amber-100'
-                  : 'text-slate-400 hover:text-amber-500 hover:bg-slate-100',
-                // <-- ДОБАВЛЕНО: Темная тема для звезды фокуса
-                task.isDailyFocus 
-                  ? 'dark:bg-amber-900/20 dark:hover:bg-amber-900/40' 
-                  : 'dark:text-slate-500 dark:hover:text-amber-400 dark:hover:bg-slate-700'
-              )}
-              title="Сделать главным фокусом дня"
+              onClick={handleDuplicate}
+              className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-full transition-colors opacity-100 md:opacity-0 md:group-hover:opacity-100 dark:hover:text-indigo-400 dark:hover:bg-indigo-900/20"
+              title="Дублировать задачу"
             >
-              <Star className={cn('h-4 w-4', task.isDailyFocus && 'fill-current')} />
+              <Copy className="h-4 w-4" />
             </button>
-          )}
-          <button
-            onClick={() => deleteTask(task.id)}
-            className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors opacity-0 group-hover:opacity-100 dark:hover:text-red-400 dark:hover:bg-red-900/20"
-          >
-            <Trash2 className="h-4 w-4" />
-          </button>
+
+            {/* Кнопка редактирования задачи */}
+            {onEdit && (
+              <button
+                onClick={() => onEdit(task)}
+                className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-full transition-colors opacity-100 md:opacity-0 md:group-hover:opacity-100 dark:hover:text-indigo-400 dark:hover:bg-indigo-900/20"
+                title="Редактировать задачу"
+              >
+                <Pencil className="h-4 w-4" />
+              </button>
+            )}
+
+            {/* Кнопка удаления */}
+            <button
+              onClick={() => deleteTask(task.id)}
+              className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors opacity-100 md:opacity-0 md:group-hover:opacity-100 dark:hover:text-red-400 dark:hover:bg-red-900/20"
+              title="Удалить задачу"
+            >
+              <Trash2 className="h-4 w-4" />
+            </button>
+          </div>
         </div>
       </div>
     </div>
