@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <defs>
+    <linearGradient id="brandGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4f46e5"/>
+      <stop offset="100%" stop-color="#9333ea"/>
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="1.5" stdDeviation="1" flood-color="#000" flood-opacity="0.25"/>
+    </filter>
+  </defs>
+  
+  <!-- Фон с закруглёнными углами в стиле логотипа Goal Tracker -->
+  <rect width="64" height="64" rx="16" fill="url(#brandGrad)"/>
+  
+  <!-- Тонкий полупрозрачный контур для идеального контраста на светлых и тёмных вкладках -->
+  <rect x="0.5" y="0.5" width="63" height="63" rx="15.5" stroke="rgba(255,255,255,0.25)" stroke-width="1" fill="none"/>
+
+  <!-- Мишень цели (Target) -->
+  <g filter="url(#shadow)">
+    <!-- Внешнее кольцо -->
+    <circle cx="32" cy="32" r="19" stroke="#ffffff" stroke-width="3.5" fill="none"/>
+    <!-- Среднее кольцо -->
+    <circle cx="32" cy="32" r="11" stroke="#ffffff" stroke-width="3.2" fill="none"/>
+    <!-- Центр («в яблочко») -->
+    <circle cx="32" cy="32" r="4.2" fill="#ffffff"/>
+  </g>
+</svg>
