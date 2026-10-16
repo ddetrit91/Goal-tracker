@@ -8,10 +8,18 @@ const getUserId = () => {
   }
 };
 
-const getHeaders = () => ({
-  'Content-Type': 'application/json',
-  'X-User-Id': getUserId() || '',
-});
+const getHeaders = () => {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    'X-User-Id': getUserId() || '',
+  };
+  try {
+    headers['X-Client-Timezone'] = Intl.DateTimeFormat().resolvedOptions().timeZone || '';
+  } catch {
+    // ignore
+  }
+  return headers;
+};
 
 export const adminService = {
   // Получить всех пользователей

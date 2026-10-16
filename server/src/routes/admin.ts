@@ -206,10 +206,20 @@ admin.get('/activity', async (c) => {
       userRole: users.role,
       lastLogin: sql<string>`COALESCE(MAX(${activityLogs.createdAt}), ${users.lastLogin}, ${users.createdAt})`.as('last_login'),
       requestCount: sql<number>`COUNT(${activityLogs.id})`.as('request_count'),
+      ipAddress: sql<string>`COALESCE(
+        (SELECT al.ip_address FROM activity_logs al WHERE al.user_id = ${users.id} AND al.ip_address IS NOT NULL AND al.ip_address != '' ORDER BY al.created_at DESC LIMIT 1),
+        ${users.lastIp},
+        '127.0.0.1'
+      )`.as('ip_address'),
+      city: sql<string>`COALESCE(
+        (SELECT al.city FROM activity_logs al WHERE al.user_id = ${users.id} AND al.city IS NOT NULL AND al.city != '' ORDER BY al.created_at DESC LIMIT 1),
+        ${users.lastCity},
+        'Локально'
+      )`.as('city'),
     })
     .from(users)
     .leftJoin(activityLogs, eq(users.id, activityLogs.userId))
-    .groupBy(users.id, users.name, users.email, users.role, users.createdAt, users.lastLogin)
+    .groupBy(users.id, users.name, users.email, users.role, users.createdAt, users.lastLogin, users.lastIp, users.lastCity)
     .orderBy(sql`COALESCE(MAX(${activityLogs.createdAt}), ${users.lastLogin}, ${users.createdAt}) DESC`)
     .limit(100);
     

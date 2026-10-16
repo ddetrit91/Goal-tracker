@@ -1,3 +1,4 @@
+import * as React from 'react';
 import { useTaskStore } from '@/store/useTaskStore';
 import { useGoalStore } from '@/store/useGoalStore';
 import { cn } from '@/utils/cn';
@@ -5,6 +6,7 @@ import { CategoryBadge } from '@/components/common/CategoryBadge';
 import { Star, Check, Trash2, Target, Pencil, Copy } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import type { Task } from '@/types/task';
+import { calculateTaskXP } from '@/utils/gamification';
 
 interface TaskItemProps {
   task: Task;
@@ -16,6 +18,7 @@ interface TaskItemProps {
 export function TaskItem({ task, onToggleFocus, onEdit, onDuplicate }: TaskItemProps) {
   const { toggleComplete, deleteTask, createTask } = useTaskStore();
   const { goals } = useGoalStore();
+  const [floatingXP, setFloatingXP] = React.useState<number | null>(null);
   
   const parentGoal = task.goalId ? goals.find((g) => g.id === task.goalId) : null;
 
@@ -53,11 +56,16 @@ export function TaskItem({ task, onToggleFocus, onEdit, onDuplicate }: TaskItemP
   };
 
   const handleCheck = async () => {
+    const willBeCompleted = !task.isCompleted;
     await toggleComplete(task.id);
-    if (!task.isCompleted) {
+    if (willBeCompleted) {
+      const earned = calculateTaskXP(task);
+      setFloatingXP(earned);
+      setTimeout(() => setFloatingXP(null), 1800);
+
       confetti({
-        particleCount: 100,
-        spread: 70,
+        particleCount: 80,
+        spread: 60,
         origin: { y: 0.6 },
         colors: ['#6366f1', '#10b981', '#f59e0b'],
       });
@@ -73,26 +81,34 @@ export function TaskItem({ task, onToggleFocus, onEdit, onDuplicate }: TaskItemP
   return (
     <div
       className={cn(
-        'group flex items-start gap-3 rounded-lg border border-slate-200 bg-white p-4 transition-all hover:shadow-md',
+        'group flex items-start gap-3 rounded-lg border border-slate-200 bg-white p-4 transition-all hover:shadow-md relative',
         task.isCompleted && 'opacity-60 bg-slate-50',
         // <-- ДОБАВЛЕНО: Темная тема для карточки
         'dark:bg-slate-800 dark:border-slate-700 dark:hover:shadow-none',
         task.isCompleted && 'dark:bg-slate-800/50 dark:opacity-50'
       )}
     >
-      <button
-        onClick={handleCheck}
-        className={cn(
-          'mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded border transition-colors',
-          task.isCompleted
-            ? 'border-emerald-500 bg-emerald-500 text-white'
-            : 'border-slate-300 hover:border-indigo-500',
-          // <-- ДОБАВЛЕНО: Темная тема для чекбокса
-          !task.isCompleted && 'dark:border-slate-600 dark:hover:border-indigo-400'
+      <div className="relative shrink-0 mt-0.5">
+        <button
+          onClick={handleCheck}
+          className={cn(
+            'flex h-5 w-5 items-center justify-center rounded border transition-colors',
+            task.isCompleted
+              ? 'border-emerald-500 bg-emerald-500 text-white'
+              : 'border-slate-300 hover:border-indigo-500',
+            // <-- ДОБАВЛЕНО: Темная тема для чекбокса
+            !task.isCompleted && 'dark:border-slate-600 dark:hover:border-indigo-400'
+          )}
+        >
+          {task.isCompleted && <Check className="h-3.5 w-3.5" />}
+        </button>
+
+        {floatingXP !== null && (
+          <span className="absolute -top-7 -left-1 z-30 pointer-events-none px-2 py-0.5 rounded-full bg-gradient-to-r from-amber-500 to-indigo-600 text-white font-black text-[11px] shadow-lg shadow-indigo-500/40 animate-bounce whitespace-nowrap flex items-center gap-1">
+            +{floatingXP} XP ✨
+          </span>
         )}
-      >
-        {task.isCompleted && <Check className="h-3.5 w-3.5" />}
-      </button>
+      </div>
 
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 mb-1">

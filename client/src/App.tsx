@@ -17,6 +17,8 @@ import { ProgressReminderBanner } from '@/components/common/ProgressReminderBann
 import { useGoalStore } from '@/store/useGoalStore';
 import { useTaskStore } from '@/store/useTaskStore';
 import { useCategoryStore } from '@/store/useCategoryStore';
+import { GOAL_GUIDES } from '@/data/guidesData';
+import { getGamificationStats } from '@/utils/gamification';
 
 // Компонент-защитник маршрутов
 function ProtectedRoute() {
@@ -34,6 +36,8 @@ function AppContent() {
   const fetchGoals = useGoalStore((state) => state.fetchGoals);
   const fetchTasks = useTaskStore((state) => state.fetchTasks);
   const fetchCategories = useCategoryStore((state) => state.fetchCategories);
+  const goals = useGoalStore((state) => state.goals);
+  const tasks = useTaskStore((state) => state.tasks);
   
   const [toastMessage, setToastMessage] = React.useState<string | null>(null);
 
@@ -54,6 +58,62 @@ function AppContent() {
     window.addEventListener('show-toast', handleShowToast);
     return () => window.removeEventListener('show-toast', handleShowToast);
   }, [fetchGoals, fetchTasks, fetchCategories, isAuthPage]);
+
+  // Отслеживание разблокировки новых гайдов для всплывающего уведомления на любой странице
+  React.useEffect(() => {
+    const user = localStorage.getItem('user');
+    if (!user || isAuthPage) return;
+
+    // Ждем загрузки данных
+    if (goals.length === 0 && tasks.length === 0) return;
+
+    try {
+      const parsedUser = JSON.parse(user);
+      const userKey = parsedUser?.id || parsedUser?.email || 'user';
+      const storageKey = `unlocked_guides_known_${userKey}`;
+
+      const stats = getGamificationStats(goals, tasks);
+      const unlockedAchievementIds = new Set(
+        stats.achievements.filter((a) => a.isUnlocked).map((a) => a.id)
+      );
+
+      const currentUnlocked = GOAL_GUIDES.filter((guide) => {
+        const { minLevel, achievementId } = guide.unlockCondition;
+        const isLevelSufficient = minLevel === undefined || stats.level >= minLevel;
+        const isAchievementEarned = !achievementId || unlockedAchievementIds.has(achievementId);
+        return isLevelSufficient && isAchievementEarned;
+      });
+
+      const currentUnlockedIds = currentUnlocked.map((g) => g.id);
+      const knownRaw = localStorage.getItem(storageKey);
+
+      if (!knownRaw) {
+        // Первый запуск для пользователя: фиксируем базовый уровень без всплывающего спама
+        localStorage.setItem(storageKey, JSON.stringify(currentUnlockedIds));
+        return;
+      }
+
+      const knownIds: string[] = JSON.parse(knownRaw);
+      const newlyUnlocked = currentUnlocked.filter((g) => !knownIds.includes(g.id));
+
+      if (newlyUnlocked.length > 0) {
+        localStorage.setItem(storageKey, JSON.stringify(currentUnlockedIds));
+        newlyUnlocked.forEach((guide, idx) => {
+          setTimeout(() => {
+            window.dispatchEvent(
+              new CustomEvent('show-toast', {
+                detail: {
+                  message: `🎉 Разблокирован новый гайд: «${guide.title}»! Изучите в разделе «Обзор → Гайды»`,
+                },
+              })
+            );
+          }, idx * 3200);
+        });
+      }
+    } catch (e) {
+      console.error('Error tracking guide unlocks:', e);
+    }
+  }, [goals, tasks, isAuthPage]);
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 relative transition-colors duration-300">

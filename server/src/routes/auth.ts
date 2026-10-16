@@ -8,6 +8,7 @@ import { db } from '../db';
 // <-- ДОБАВЛЕНО: activityLogs для записи в журнал
 import { users, goals as goalsTable, tasks as tasksTable, categories as categoriesTable, activityLogs } from '../db/schema';
 import { eq, and } from 'drizzle-orm';
+import { extractClientIp, resolveClientCity } from '../utils/geoIp';
 
 const auth = new Hono();
 
@@ -58,9 +59,31 @@ auth.post('/register', zValidator('json', registerSchema), async (c) => {
     
     if (existingUser) return c.json({ error: 'Пользователь с таким email уже существует' }, 409);
 
+    const ip = extractClientIp(c);
+    const city = await resolveClientCity(c, ip);
     const passwordHash = await bcrypt.hash(password, 10);
     const id = randomUUID();
-    await db.insert(users).values({ id, email, passwordHash, name: name || null, role: 'user' });
+    const now = new Date().toISOString();
+
+    await db.insert(users).values({ 
+      id, 
+      email, 
+      passwordHash, 
+      name: name || null, 
+      role: 'user',
+      lastLogin: now,
+      lastIp: ip,
+      lastCity: city
+    });
+
+    await db.insert(activityLogs).values({
+      id: randomUUID(),
+      userId: id,
+      action: 'register',
+      ipAddress: ip,
+      city: city,
+      createdAt: now,
+    });
 
     return c.json({ message: 'Регистрация успешна', user: { id, email, name, role: 'user' } }, 201);
   } catch (error) {
@@ -69,7 +92,7 @@ auth.post('/register', zValidator('json', registerSchema), async (c) => {
   }
 });
 
-// ЕДИНСТВЕННЫЙ ПРАВИЛЬНЫЙ БЛОК ЛОГИНА (С ЛОГИРОВАНИЕМ)
+// ЕДИНСТВЕННЫЙ ПРАВИЛЬНЫЙ БЛОК ЛОГИНА (С ЛОГИРОВАНИЕМ IP И ГОРОДА)
 auth.post('/login', zValidator('json', loginSchema), async (c) => {
   try {
     const { email, password } = c.req.valid('json');
@@ -80,17 +103,25 @@ auth.post('/login', zValidator('json', loginSchema), async (c) => {
     const isValidPassword = await bcrypt.compare(password, user.passwordHash);
     if (!isValidPassword) return c.json({ error: 'Неверный пароль' }, 401);
 
-    // Логируем вход и обновляем lastLogin
+    // Логируем вход и обновляем lastLogin, IP и Город
     const now = new Date().toISOString();
+    const ip = extractClientIp(c);
+    const city = await resolveClientCity(c, ip);
     
     await db.insert(activityLogs).values({
       id: randomUUID(),
       userId: user.id,
       action: 'login',
+      ipAddress: ip,
+      city: city,
       createdAt: now,
     });
     
-    await db.update(users).set({ lastLogin: now }).where(eq(users.id, user.id));
+    await db.update(users).set({ 
+      lastLogin: now,
+      lastIp: ip,
+      lastCity: city
+    }).where(eq(users.id, user.id));
 
     return c.json({ 
       message: 'Вход выполнен успешно', 

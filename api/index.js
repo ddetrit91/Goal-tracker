@@ -45,7 +45,9 @@ var users = sqliteTable("users", {
   role: text("role").default("user"),
   // 'user' | 'admin'
   createdAt: text("created_at").default(sql`(CURRENT_TIMESTAMP)`),
-  lastLogin: text("last_login")
+  lastLogin: text("last_login"),
+  lastIp: text("last_ip"),
+  lastCity: text("last_city")
 });
 var goals = sqliteTable("goals", {
   id: text("id").primaryKey(),
@@ -93,6 +95,8 @@ var activityLogs = sqliteTable("activity_logs", {
   id: text("id").primaryKey(),
   userId: text("user_id").references(() => users.id, { onDelete: "set null" }),
   action: text("action").notNull(),
+  ipAddress: text("ip_address"),
+  city: text("city"),
   createdAt: text("created_at").default(sql`(CURRENT_TIMESTAMP)`)
 });
 var settings = sqliteTable("settings", {
@@ -132,6 +136,162 @@ var db = drizzle(client, { schema: schema_exports });
 
 // server/src/routes/auth.ts
 import { eq, and } from "drizzle-orm";
+
+// server/src/utils/geoIp.ts
+var geoCache = /* @__PURE__ */ new Map();
+var TIMEZONE_TO_CITY = {
+  "Asia/Tashkent": "\u0422\u0430\u0448\u043A\u0435\u043D\u0442",
+  "Asia/Samarkand": "\u0421\u0430\u043C\u0430\u0440\u043A\u0430\u043D\u0434",
+  "Europe/Moscow": "\u041C\u043E\u0441\u043A\u0432\u0430",
+  "Europe/Kaliningrad": "\u041A\u0430\u043B\u0438\u043D\u0438\u043D\u0433\u0440\u0430\u0434",
+  "Europe/Samara": "\u0421\u0430\u043C\u0430\u0440\u0430",
+  "Asia/Yekaterinburg": "\u0415\u043A\u0430\u0442\u0435\u0440\u0438\u043D\u0431\u0443\u0440\u0433",
+  "Asia/Omsk": "\u041E\u043C\u0441\u043A",
+  "Asia/Novosibirsk": "\u041D\u043E\u0432\u043E\u0441\u0438\u0431\u0438\u0440\u0441\u043A",
+  "Asia/Krasnoyarsk": "\u041A\u0440\u0430\u0441\u043D\u043E\u044F\u0440\u0441\u043A",
+  "Asia/Irkutsk": "\u0418\u0440\u043A\u0443\u0442\u0441\u043A",
+  "Asia/Yakutsk": "\u042F\u043A\u0443\u0442\u0441\u043A",
+  "Asia/Vladivostok": "\u0412\u043B\u0430\u0434\u0438\u0432\u043E\u0441\u0442\u043E\u043A",
+  "Europe/Minsk": "\u041C\u0438\u043D\u0441\u043A",
+  "Asia/Almaty": "\u0410\u043B\u043C\u0430\u0442\u044B",
+  "Asia/Astana": "\u0410\u0441\u0442\u0430\u043D\u0430",
+  "Asia/Qyzylorda": "\u041A\u044B\u0437\u044B\u043B\u043E\u0440\u0434\u0430",
+  "Asia/Bishkek": "\u0411\u0438\u0448\u043A\u0435\u043A",
+  "Asia/Dushanbe": "\u0414\u0443\u0448\u0430\u043D\u0431\u0435",
+  "Asia/Baku": "\u0411\u0430\u043A\u0443",
+  "Asia/Tbilisi": "\u0422\u0431\u0438\u043B\u0438\u0441\u0438",
+  "Asia/Yerevan": "\u0415\u0440\u0435\u0432\u0430\u043D",
+  "Europe/Kyiv": "\u041A\u0438\u0435\u0432",
+  "Asia/Dubai": "\u0414\u0443\u0431\u0430\u0439",
+  "Asia/Istanbul": "\u0421\u0442\u0430\u043C\u0431\u0443\u043B",
+  "Europe/London": "\u041B\u043E\u043D\u0434\u043E\u043D",
+  "Europe/Berlin": "\u0411\u0435\u0440\u043B\u0438\u043D",
+  "Europe/Paris": "\u041F\u0430\u0440\u0438\u0436",
+  "America/New_York": "\u041D\u044C\u044E-\u0419\u043E\u0440\u043A",
+  "America/Los_Angeles": "\u041B\u043E\u0441-\u0410\u043D\u0434\u0436\u0435\u043B\u0435\u0441"
+};
+var CITY_NAME_RU = {
+  "tashkent": "\u0422\u0430\u0448\u043A\u0435\u043D\u0442",
+  "samarkand": "\u0421\u0430\u043C\u0430\u0440\u043A\u0430\u043D\u0434",
+  "bukhara": "\u0411\u0443\u0445\u0430\u0440\u0430",
+  "andijan": "\u0410\u043D\u0434\u0438\u0436\u0430\u043D",
+  "namangan": "\u041D\u0430\u043C\u0430\u043D\u0433\u0430\u043D",
+  "fergana": "\u0424\u0435\u0440\u0433\u0430\u043D\u0430",
+  "nukus": "\u041D\u0443\u043A\u0443\u0441",
+  "moscow": "\u041C\u043E\u0441\u043A\u0432\u0430",
+  "saint petersburg": "\u0421\u0430\u043D\u043A\u0442-\u041F\u0435\u0442\u0435\u0440\u0431\u0443\u0440\u0433",
+  "almaty": "\u0410\u043B\u043C\u0430\u0442\u044B",
+  "astana": "\u0410\u0441\u0442\u0430\u043D\u0430",
+  "minsk": "\u041C\u0438\u043D\u0441\u043A",
+  "bishkek": "\u0411\u0438\u0448\u043A\u0435\u043A",
+  "dushanbe": "\u0414\u0443\u0448\u0430\u043D\u0431\u0435",
+  "baku": "\u0411\u0430\u043A\u0443",
+  "tbilisi": "\u0422\u0431\u0438\u043B\u0438\u0441\u0438",
+  "yerevan": "\u0415\u0440\u0435\u0432\u0430\u043D",
+  "kyiv": "\u041A\u0438\u0435\u0432",
+  "kiev": "\u041A\u0438\u0435\u0432",
+  "dubai": "\u0414\u0443\u0431\u0430\u0439",
+  "istanbul": "\u0421\u0442\u0430\u043C\u0431\u0443\u043B",
+  "london": "\u041B\u043E\u043D\u0434\u043E\u043D",
+  "berlin": "\u0411\u0435\u0440\u043B\u0438\u043D",
+  "paris": "\u041F\u0430\u0440\u0438\u0436",
+  "new york": "\u041D\u044C\u044E-\u0419\u043E\u0440\u043A"
+};
+function formatCityName(rawCity) {
+  const trimmed = rawCity.trim();
+  const lower = trimmed.toLowerCase();
+  if (CITY_NAME_RU[lower]) {
+    return CITY_NAME_RU[lower];
+  }
+  return trimmed;
+}
+function isPrivateIp(ip) {
+  if (!ip) return true;
+  if (ip === "127.0.0.1" || ip === "::1" || ip === "localhost") return true;
+  if (ip.startsWith("10.") || ip.startsWith("192.168.") || ip.startsWith("172.16.") || ip.startsWith("172.31.")) return true;
+  return false;
+}
+function extractClientIp(c) {
+  const cfIp = c.req.header("cf-connecting-ip");
+  const vercelIp = c.req.header("x-vercel-forwarded-for");
+  const realIp = c.req.header("x-real-ip");
+  const forwardedFor = c.req.header("x-forwarded-for");
+  let ip = cfIp || vercelIp || realIp;
+  if (!ip && forwardedFor) {
+    ip = forwardedFor.split(",")[0].trim();
+  }
+  if (!ip) {
+    try {
+      ip = c.env?.incoming?.socket?.remoteAddress || "127.0.0.1";
+    } catch {
+      ip = "127.0.0.1";
+    }
+  }
+  if (ip && ip.startsWith("::ffff:")) {
+    ip = ip.substring(7);
+  }
+  if (ip === "::1") {
+    ip = "127.0.0.1";
+  }
+  return ip || "127.0.0.1";
+}
+async function resolveClientCity(c, ip) {
+  const vercelCity = c.req.header("x-vercel-ip-city");
+  if (vercelCity) {
+    try {
+      const decoded = decodeURIComponent(vercelCity);
+      if (decoded && decoded !== "Unknown") return formatCityName(decoded);
+    } catch {
+    }
+  }
+  const cfCity = c.req.header("cf-ipcity");
+  if (cfCity && cfCity !== "Unknown") {
+    return formatCityName(cfCity);
+  }
+  const clientCityHeader = c.req.header("x-client-city");
+  if (clientCityHeader) {
+    try {
+      const decoded = decodeURIComponent(clientCityHeader);
+      if (decoded && decoded !== "Unknown") return formatCityName(decoded);
+    } catch {
+      return formatCityName(clientCityHeader);
+    }
+  }
+  const clientTz = c.req.header("x-client-timezone");
+  if (clientTz && TIMEZONE_TO_CITY[clientTz]) {
+    const cityName = TIMEZONE_TO_CITY[clientTz];
+    if (isPrivateIp(ip)) {
+      return `${cityName} (\u041B\u043E\u043A\u0430\u043B\u044C\u043D\u043E)`;
+    }
+    return cityName;
+  }
+  if (isPrivateIp(ip)) {
+    return "\u041B\u043E\u043A\u0430\u043B\u044C\u043D\u043E";
+  }
+  if (geoCache.has(ip)) {
+    return geoCache.get(ip);
+  }
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 1500);
+    const res = await fetch(`http://ip-api.com/json/${ip}?fields=city,status&lang=ru`, {
+      signal: controller.signal
+    });
+    clearTimeout(timeout);
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.status === "success" && data.city) {
+        const city = formatCityName(data.city);
+        geoCache.set(ip, city);
+        return city;
+      }
+    }
+  } catch {
+  }
+  return "\u041D\u0435 \u043E\u043F\u0440\u0435\u0434\u0435\u043B\u0435\u043D";
+}
+
+// server/src/routes/auth.ts
 var auth = new Hono();
 var registerSchema = z.object({
   email: z.string().email("\u041D\u0435\u043A\u043E\u0440\u0440\u0435\u043A\u0442\u043D\u044B\u0439 email"),
@@ -171,9 +331,29 @@ auth.post("/register", zValidator("json", registerSchema), async (c) => {
     const { email, password, name } = c.req.valid("json");
     const existingUser = await db.select().from(users).where(eq(users.email, email)).get();
     if (existingUser) return c.json({ error: "\u041F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u0442\u0435\u043B\u044C \u0441 \u0442\u0430\u043A\u0438\u043C email \u0443\u0436\u0435 \u0441\u0443\u0449\u0435\u0441\u0442\u0432\u0443\u0435\u0442" }, 409);
+    const ip = extractClientIp(c);
+    const city = await resolveClientCity(c, ip);
     const passwordHash = await bcrypt.hash(password, 10);
     const id = randomUUID();
-    await db.insert(users).values({ id, email, passwordHash, name: name || null, role: "user" });
+    const now = (/* @__PURE__ */ new Date()).toISOString();
+    await db.insert(users).values({
+      id,
+      email,
+      passwordHash,
+      name: name || null,
+      role: "user",
+      lastLogin: now,
+      lastIp: ip,
+      lastCity: city
+    });
+    await db.insert(activityLogs).values({
+      id: randomUUID(),
+      userId: id,
+      action: "register",
+      ipAddress: ip,
+      city,
+      createdAt: now
+    });
     return c.json({ message: "\u0420\u0435\u0433\u0438\u0441\u0442\u0440\u0430\u0446\u0438\u044F \u0443\u0441\u043F\u0435\u0448\u043D\u0430", user: { id, email, name, role: "user" } }, 201);
   } catch (error) {
     console.error("Register error:", error);
@@ -188,13 +368,21 @@ auth.post("/login", zValidator("json", loginSchema), async (c) => {
     const isValidPassword = await bcrypt.compare(password, user.passwordHash);
     if (!isValidPassword) return c.json({ error: "\u041D\u0435\u0432\u0435\u0440\u043D\u044B\u0439 \u043F\u0430\u0440\u043E\u043B\u044C" }, 401);
     const now = (/* @__PURE__ */ new Date()).toISOString();
+    const ip = extractClientIp(c);
+    const city = await resolveClientCity(c, ip);
     await db.insert(activityLogs).values({
       id: randomUUID(),
       userId: user.id,
       action: "login",
+      ipAddress: ip,
+      city,
       createdAt: now
     });
-    await db.update(users).set({ lastLogin: now }).where(eq(users.id, user.id));
+    await db.update(users).set({
+      lastLogin: now,
+      lastIp: ip,
+      lastCity: city
+    }).where(eq(users.id, user.id));
     return c.json({
       message: "\u0412\u0445\u043E\u0434 \u0432\u044B\u043F\u043E\u043B\u043D\u0435\u043D \u0443\u0441\u043F\u0435\u0448\u043D\u043E",
       user: { id: user.id, email: user.email, name: user.name, role: user.role }
@@ -773,8 +961,18 @@ admin.get("/activity", async (c) => {
       userEmail: users.email,
       userRole: users.role,
       lastLogin: sql2`COALESCE(MAX(${activityLogs.createdAt}), ${users.lastLogin}, ${users.createdAt})`.as("last_login"),
-      requestCount: sql2`COUNT(${activityLogs.id})`.as("request_count")
-    }).from(users).leftJoin(activityLogs, eq2(users.id, activityLogs.userId)).groupBy(users.id, users.name, users.email, users.role, users.createdAt, users.lastLogin).orderBy(sql2`COALESCE(MAX(${activityLogs.createdAt}), ${users.lastLogin}, ${users.createdAt}) DESC`).limit(100);
+      requestCount: sql2`COUNT(${activityLogs.id})`.as("request_count"),
+      ipAddress: sql2`COALESCE(
+        (SELECT al.ip_address FROM activity_logs al WHERE al.user_id = ${users.id} AND al.ip_address IS NOT NULL AND al.ip_address != '' ORDER BY al.created_at DESC LIMIT 1),
+        ${users.lastIp},
+        '127.0.0.1'
+      )`.as("ip_address"),
+      city: sql2`COALESCE(
+        (SELECT al.city FROM activity_logs al WHERE al.user_id = ${users.id} AND al.city IS NOT NULL AND al.city != '' ORDER BY al.created_at DESC LIMIT 1),
+        ${users.lastCity},
+        'Локально'
+      )`.as("city")
+    }).from(users).leftJoin(activityLogs, eq2(users.id, activityLogs.userId)).groupBy(users.id, users.name, users.email, users.role, users.createdAt, users.lastLogin, users.lastIp, users.lastCity).orderBy(sql2`COALESCE(MAX(${activityLogs.createdAt}), ${users.lastLogin}, ${users.createdAt}) DESC`).limit(100);
     return c.json(logs);
   } catch (error) {
     console.error("Fetch activity error:", error);
@@ -822,7 +1020,11 @@ async function ensureDbInitialized() {
       { name: "status", sql: "ALTER TABLE goals ADD COLUMN status TEXT DEFAULT 'backlog'" },
       { name: "is_today_goal", sql: "ALTER TABLE goals ADD COLUMN is_today_goal INTEGER DEFAULT 0" },
       { name: "completed_at", sql: "ALTER TABLE goals ADD COLUMN completed_at TEXT" },
-      { name: "role", sql: "ALTER TABLE users ADD COLUMN role TEXT DEFAULT 'user'" }
+      { name: "role", sql: "ALTER TABLE users ADD COLUMN role TEXT DEFAULT 'user'" },
+      { name: "last_ip", sql: "ALTER TABLE users ADD COLUMN last_ip TEXT" },
+      { name: "last_city", sql: "ALTER TABLE users ADD COLUMN last_city TEXT" },
+      { name: "ip_address", sql: "ALTER TABLE activity_logs ADD COLUMN ip_address TEXT" },
+      { name: "city", sql: "ALTER TABLE activity_logs ADD COLUMN city TEXT" }
     ];
     for (const col of columnsToAdd) {
       try {
@@ -877,11 +1079,44 @@ app.use("*", cors({
     return clientOrigin;
   },
   allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-  allowHeaders: ["Content-Type", "Authorization", "X-User-Id"]
+  allowHeaders: ["Content-Type", "Authorization", "X-User-Id", "X-Client-Timezone", "X-Client-City"]
 }));
 app.use("*", async (c, next) => {
   await ensureDbInitialized();
   await next();
+});
+var userActivityThrottle = /* @__PURE__ */ new Map();
+app.use("*", async (c, next) => {
+  await next();
+  const userId = c.req.header("X-User-Id");
+  if (userId && !c.req.path.startsWith("/api/admin")) {
+    const lastTracked = userActivityThrottle.get(userId) || 0;
+    const nowMs = Date.now();
+    if (nowMs - lastTracked > 12e4) {
+      userActivityThrottle.set(userId, nowMs);
+      const ip = extractClientIp(c);
+      resolveClientCity(c, ip).then(async (city) => {
+        try {
+          const nowIso = (/* @__PURE__ */ new Date()).toISOString();
+          await db.update(users).set({
+            lastLogin: nowIso,
+            lastIp: ip,
+            lastCity: city
+          }).where(eq3(users.id, userId));
+          await db.insert(activityLogs).values({
+            id: crypto.randomUUID(),
+            userId,
+            action: "active",
+            ipAddress: ip,
+            city,
+            createdAt: nowIso
+          });
+        } catch {
+        }
+      }).catch(() => {
+      });
+    }
+  }
 });
 app.route("/api/auth", auth_default);
 app.route("/api", auth_default);

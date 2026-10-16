@@ -22,7 +22,10 @@ export function RegisterPage() {
     try {
       const res = await fetch(`${API_BASE}/auth/register`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'X-Client-Timezone': Intl.DateTimeFormat().resolvedOptions().timeZone || '',
+        },
         body: JSON.stringify({ name, email, password }),
       });
 

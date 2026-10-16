@@ -9,6 +9,8 @@ export const users = sqliteTable('users', {
   role: text('role').default('user'), // 'user' | 'admin'
   createdAt: text('created_at').default(sql`(CURRENT_TIMESTAMP)`),
   lastLogin: text('last_login'),
+  lastIp: text('last_ip'),
+  lastCity: text('last_city'),
 });
 
 export const goals = sqliteTable('goals', {
@@ -60,6 +62,8 @@ export const activityLogs = sqliteTable('activity_logs', {
   id: text('id').primaryKey(),
   userId: text('user_id').references(() => users.id, { onDelete: 'set null' }),
   action: text('action').notNull(),
+  ipAddress: text('ip_address'),
+  city: text('city'),
   createdAt: text('created_at').default(sql`(CURRENT_TIMESTAMP)`),
 });
 

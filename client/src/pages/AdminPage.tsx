@@ -3,7 +3,7 @@ import * as React from 'react';
 import { adminService } from '@/services/adminService';
 import { 
   Users, BarChart3, Settings, UserCog, Key, Trash2, CheckCircle2, XCircle, 
-  Plus, Activity, CalendarDays, LogIn 
+  Plus, Activity, CalendarDays, LogIn, Globe, MapPin 
 } from 'lucide-react';
 import { cn } from '@/utils/cn';
 
@@ -34,6 +34,8 @@ interface ActivityLog {
   userRole: string;
   lastLogin: string;
   requestCount: number;
+  ipAddress?: string;
+  city?: string;
 }
 
 export function AdminPage() {
@@ -411,7 +413,7 @@ export function AdminPage() {
           {/* МОБИЛЬНЫЙ ВИД: Карточки логов */}
           <div className="md:hidden divide-y divide-slate-100 dark:divide-slate-700/60">
             {activityLogs.length > 0 ? activityLogs.map((log, index) => (
-              <div key={index} className="p-4 space-y-2">
+              <div key={index} className="p-4 space-y-2.5">
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
                     <h4 className="font-semibold text-slate-900 dark:text-white truncate">
@@ -428,9 +430,30 @@ export function AdminPage() {
                     {log.userRole || 'user'}
                   </span>
                 </div>
+
                 <div className="text-xs text-slate-400 dark:text-slate-500 flex items-center justify-between pt-1">
                   <span>Последняя активность</span>
-                  <span>{log.lastLogin ? new Date(log.lastLogin).toLocaleString('ru-RU') : '—'}</span>
+                  <span className="text-slate-700 dark:text-slate-200 font-medium">
+                    {log.lastLogin ? new Date(log.lastLogin).toLocaleString('ru-RU') : '—'}
+                  </span>
+                </div>
+
+                <div className="text-xs text-slate-500 dark:text-slate-400 flex items-center justify-between pt-1 border-t border-slate-100 dark:border-slate-700/50">
+                  <span className="flex items-center gap-1.5 font-medium text-slate-600 dark:text-slate-400">
+                    <Globe className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" /> IP адрес
+                  </span>
+                  <span className="font-mono text-xs px-2.5 py-0.5 rounded-md bg-indigo-50 dark:bg-indigo-950/40 text-indigo-900 dark:text-indigo-200 border border-indigo-200 dark:border-indigo-800/60 shadow-sm">
+                    {log.ipAddress || '127.0.0.1'}
+                  </span>
+                </div>
+
+                <div className="text-xs text-slate-500 dark:text-slate-400 flex items-center justify-between pt-1">
+                  <span className="flex items-center gap-1.5 font-medium text-slate-600 dark:text-slate-400">
+                    <MapPin className="h-3.5 w-3.5 text-rose-600 dark:text-rose-400" /> Город
+                  </span>
+                  <span className="text-xs font-medium px-2.5 py-0.5 rounded-md bg-rose-50 dark:bg-rose-950/40 text-rose-900 dark:text-rose-200 border border-rose-200 dark:border-rose-800/60 shadow-sm">
+                    {log.city || 'Локально'}
+                  </span>
                 </div>
               </div>
             )) : (
@@ -447,6 +470,8 @@ export function AdminPage() {
                   <th className="px-6 py-4 font-semibold">Email</th>
                   <th className="px-6 py-4 font-semibold">Роль</th>
                   <th className="px-6 py-4 font-semibold">Последняя активность</th>
+                  <th className="px-6 py-4 font-semibold">IP адрес</th>
+                  <th className="px-6 py-4 font-semibold">Город</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
@@ -469,9 +494,21 @@ export function AdminPage() {
                     <td className="px-6 py-4 text-slate-600 dark:text-slate-300">
                       {log.lastLogin ? new Date(log.lastLogin).toLocaleString('ru-RU') : '—'}
                     </td>
+                    <td className="px-6 py-4">
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-indigo-50 dark:bg-indigo-950/40 text-indigo-900 dark:text-indigo-200 border border-indigo-200 dark:border-indigo-800/60 font-mono text-xs shadow-sm">
+                        <Globe className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400 shrink-0" />
+                        <span>{log.ipAddress || '127.0.0.1'}</span>
+                      </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-rose-50 dark:bg-rose-950/40 text-rose-900 dark:text-rose-200 border border-rose-200 dark:border-rose-800/60 text-xs font-medium shadow-sm">
+                        <MapPin className="h-3.5 w-3.5 text-rose-600 dark:text-rose-400 shrink-0" />
+                        <span>{log.city || 'Локально'}</span>
+                      </span>
+                    </td>
                   </tr>
                 )) : (
-                  <tr><td colSpan={4} className="px-6 py-8 text-center text-slate-500 dark:text-slate-400">Нет данных о входах.</td></tr>
+                  <tr><td colSpan={6} className="px-6 py-8 text-center text-slate-500 dark:text-slate-400">Нет данных о входах.</td></tr>
                 )}
               </tbody>
             </table>

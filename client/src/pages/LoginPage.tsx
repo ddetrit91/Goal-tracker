@@ -22,7 +22,10 @@ export function LoginPage() {
     try {
       const res = await fetch(`${API_BASE}/auth/login`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'X-Client-Timezone': Intl.DateTimeFormat().resolvedOptions().timeZone || '',
+        },
         body: JSON.stringify({ email, password }),
       });
 

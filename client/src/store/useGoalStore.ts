@@ -115,9 +115,11 @@ export const useGoalStore = create<GoalState>((set, get) => ({
 
       const updated = await res.json();
       const previousGoal = get().goals.find((g) => g.id === id);
+      const isProgress100 = data.progress === 100 || updated.progress === 100;
       const isNewlyCompleted = 
-        (data.status === 'completed' && previousGoal?.status !== 'completed') ||
-        (data.progress === 100 && (previousGoal?.progress ?? 0) < 100 && previousGoal?.status !== 'completed');
+        isProgress100 &&
+        (data.status === 'completed' || updated.status === 'completed') &&
+        (previousGoal?.status !== 'completed' || (previousGoal?.progress ?? 0) < 100);
 
       if (isNewlyCompleted) {
         set({ celebratingGoal: { ...(previousGoal || {}), ...updated, status: 'completed', progress: 100 } });

@@ -1,5 +1,5 @@
-// client/src/pages/TodayPage.tsx
 import * as React from 'react';
+import { Link } from 'react-router-dom';
 import { useTaskStore } from '@/store/useTaskStore';
 import { useGoalStore } from '@/store/useGoalStore';
 import { DailyFocus } from '@/components/today/DailyFocus';
@@ -8,6 +8,7 @@ import { QuickTaskInput } from '@/components/today/QuickTaskInput';
 import { ProgressBar } from '@/components/common/ProgressBar';
 import { TaskEditModal } from '@/components/goals/TaskEditModal';
 import { toISODateString, formatDate } from '@/utils/date';
+import { getGamificationStats } from '@/utils/gamification';
 import { CalendarDays, CheckCircle2, Target } from 'lucide-react';
 import { cn } from '@/utils/cn';
 import confetti from 'canvas-confetti';
@@ -19,10 +20,14 @@ export function TodayPage() {
   const { tasks, fetchTasks } = useTaskStore();
   const { goals, fetchGoals, updateGoal } = useGoalStore();
   const [editingTask, setEditingTask] = React.useState<Task | null>(null);
+  const [floatingGoalXP, setFloatingGoalXP] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     Promise.all([fetchTasks(), fetchGoals()]);
   }, [fetchTasks, fetchGoals]);
+
+  // Статистика геймификации и уровень игрока (как на странице "Обзор")
+  const gamificationStats = React.useMemo(() => getGamificationStats(goals, tasks), [goals, tasks]);
 
   // Только корневые цели, отмеченные как "Цель дня" (Фокус дня)
   const todaysGoals = goals.filter((g) => g.isTodayGoal === true && !g.parentId);
@@ -47,20 +52,72 @@ export function TodayPage() {
     (t) => t.dueDate === today || (t.goalId && todayGoalHierarchyIds.has(t.goalId))
   );
 
-  // Отметить цель выполненной целиком с анимацией конфетти
-  const handleToggleGoal = async (id: string, currentStatus: string) => {
-    const newStatus = currentStatus === 'completed' ? 'in_progress' : 'completed';
-    if (newStatus === 'completed') {
-      confetti({
-        particleCount: 100,
-        spread: 70,
-        origin: { y: 0.6 },
-        colors: ['#6366f1', '#10b981', '#f59e0b'],
+  // Отметить цель выполненной целиком — только при 100% прогрессе
+  const handleToggleGoal = async (goal: (typeof goals)[0]) => {
+    const descendantIds = getAllGoalDescendantIds(goal.id);
+    const goalTasks = tasks.filter((t) => t.goalId && descendantIds.includes(t.goalId));
+    const hasTasks = goalTasks.length > 0;
+    const isAllTasksCompleted = hasTasks && goalTasks.every((t) => t.isCompleted);
+    const isCurrentlyCompleted = goal.status === 'completed' && (goal.progress ?? 0) >= 100;
+
+    // 1. Если цель уже была завершена (100%) — возвращаем её в работу
+    if (isCurrentlyCompleted) {
+      await updateGoal(goal.id, { 
+        status: 'in_progress',
+        progress: hasTasks ? Math.round((goalTasks.filter(t => t.isCompleted).length / goalTasks.length) * 100) : 0,
+        completedAt: null
       });
+      return;
     }
-    await updateGoal(id, { 
-      status: newStatus,
-      completedAt: newStatus === 'completed' ? new Date().toISOString() : null
+
+    // 2. Если у цели есть подзадачи, и они ещё не завершены на 100%
+    if (hasTasks && !isAllTasksCompleted) {
+      const completedCount = goalTasks.filter((t) => t.isCompleted).length;
+      const confirmCompleteAll = window.confirm(
+        `В цели «${goal.title}» выполнено ${completedCount} из ${goalTasks.length} подзадач (${goal.progress ?? 0}%).\n\nЗавершить все оставшиеся подзадачи и закрыть цель на 100%?`
+      );
+
+      if (!confirmCompleteAll) {
+        // Пользователь отменил — цель не закрывается и достижение не выдаётся
+        window.dispatchEvent(
+          new CustomEvent('show-toast', {
+            detail: {
+              message: `Цель выполнена на ${goal.progress ?? 0}%. Выполните все подзадачи для достижения 100%!`,
+            },
+          })
+        );
+        return;
+      }
+
+      // Пользователь подтвердил: завершаем все подзадачи цели, чтобы прогресс стал 100%
+      const taskStore = useTaskStore.getState();
+      const incompleteTasks = goalTasks.filter((t) => !t.isCompleted);
+      await Promise.all(
+        incompleteTasks.map((t) =>
+          taskStore.updateTask(t.id, {
+            isCompleted: true,
+            completedAt: new Date().toISOString(),
+          })
+        )
+      );
+    }
+
+    // 3. Прогресс гарантированно 100% — празднуем и начисляем XP
+    confetti({
+      particleCount: 100,
+      spread: 70,
+      origin: { y: 0.6 },
+      colors: ['#6366f1', '#10b981', '#f59e0b'],
+    });
+    setFloatingGoalXP(goal.id);
+    setTimeout(() => {
+      setFloatingGoalXP((prev) => (prev === goal.id ? null : prev));
+    }, 2200);
+
+    await updateGoal(goal.id, { 
+      status: 'completed',
+      progress: 100,
+      completedAt: new Date().toISOString()
     });
   };
 
@@ -78,14 +135,39 @@ export function TodayPage() {
   return (
     <div className="max-w-3xl mx-auto p-4 sm:p-6 pb-28 md:pb-6">
       <header className="mb-6 sm:mb-8 space-y-4">
-        <div className="flex items-center gap-3">
-          <CalendarDays className="h-8 w-8 text-indigo-600 dark:text-indigo-400 shrink-0" />
-          <div>
-            <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
-              {displayName ? `Привет, ${displayName}! 👋` : 'Сегодня'}
-            </h1>
-            <p className="text-slate-500 dark:text-slate-400">{formatDate(today, 'EEEE, d MMMM yyyy')}</p>
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <CalendarDays className="h-8 w-8 text-indigo-600 dark:text-indigo-400 shrink-0" />
+            <div className="min-w-0">
+              <h1 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white truncate">
+                {displayName ? `Привет, ${displayName}! 👋` : 'Сегодня'}
+              </h1>
+              <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 truncate">{formatDate(today, 'EEEE, d MMMM yyyy')}</p>
+            </div>
           </div>
+
+          {/* Виджет уровня игрока (со страницы "Обзор") */}
+          <Link
+            to="/analytics"
+            data-tour="level-badge"
+            className="group shrink-0 flex items-center gap-2 p-1.5 sm:px-3 sm:py-2 rounded-2xl bg-gradient-to-br from-indigo-500/10 via-purple-500/10 to-amber-500/10 hover:from-indigo-500/20 hover:via-purple-500/20 hover:to-amber-500/20 border border-indigo-200/80 dark:border-indigo-800/80 transition-all hover:scale-105 active:scale-95 shadow-sm"
+            title={`Твой уровень: ${gamificationStats.level} (${gamificationStats.title}). Нажми для перехода в Обзор`}
+          >
+            <div className="relative flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-tr from-indigo-600 via-indigo-500 to-purple-600 text-white font-black text-sm sm:text-base shadow-md shadow-indigo-500/30 ring-2 ring-white dark:ring-slate-900">
+              <span className="leading-none">{gamificationStats.level}</span>
+              <span className="absolute -bottom-1 -right-1 text-[11px] leading-none drop-shadow">
+                {gamificationStats.icon}
+              </span>
+            </div>
+            <div className="hidden sm:flex flex-col text-left">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400 leading-none">
+                Уровень {gamificationStats.level}
+              </span>
+              <span className="text-xs font-semibold text-slate-700 dark:text-slate-300 leading-tight">
+                {gamificationStats.title}
+              </span>
+            </div>
+          </Link>
         </div>
 
         {/* Блок фокуса на эффективную цель в едином стиле с "Главные фокусы дня" */}
@@ -142,18 +224,35 @@ export function TodayPage() {
                 )}
               >
                 <div className="flex items-center gap-3">
-                  <button
-                    onClick={() => handleToggleGoal(goal.id, goal.status || '')}
-                    className={cn(
-                      "shrink-0 h-6 w-6 rounded-full border-2 flex items-center justify-center transition-colors",
-                      isCompleted 
-                        ? "bg-emerald-500 border-emerald-500 text-white" 
-                        : "border-slate-300 dark:border-slate-600 hover:border-indigo-500"
+                  <div className="relative shrink-0 flex items-center justify-center">
+                    <button
+                      onClick={() => handleToggleGoal(goal)}
+                      className={cn(
+                        "h-6 w-6 rounded-full border-2 flex items-center justify-center transition-colors",
+                        isCompleted 
+                          ? "bg-emerald-500 border-emerald-500 text-white" 
+                          : "border-slate-300 dark:border-slate-600 hover:border-indigo-500"
+                      )}
+                      title={
+                        isCompleted 
+                          ? "Отметить как невыполненную" 
+                          : (hasTasks && completedTasksCount < totalTasksCount) 
+                            ? `Выполнено ${completedTasksCount} из ${totalTasksCount} подзадач. Нажмите для закрытия цели на 100%` 
+                            : "Отметить цель выполненной"
+                      }
+                    >
+                      <CheckCircle2 className="h-4 w-4" />
+                    </button>
+
+                    {/* Всплывающий бейдж XP при выполнении цели */}
+                    {floatingGoalXP === goal.id && (
+                      <div className="absolute -top-7 left-1/2 -translate-x-1/2 pointer-events-none z-30 animate-bounce">
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-black shadow-lg bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-300 text-slate-950 whitespace-nowrap border border-amber-300">
+                          +50 XP 🏆
+                        </span>
+                      </div>
                     )}
-                    title={isCompleted ? "Отметить как невыполненную" : "Отметить цель выполненной"}
-                  >
-                    <CheckCircle2 className="h-4 w-4" />
-                  </button>
+                  </div>
                   
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between mb-1.5">

@@ -74,10 +74,15 @@ export function GoalCelebrationModal() {
           <Sparkles className="h-5 w-5 text-yellow-200 absolute -top-2 -right-2 animate-bounce" />
         </div>
 
-        {/* Заголовок */}
-        <span className="inline-block px-3 py-1 rounded-full text-[11px] font-bold tracking-wider uppercase bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-200 dark:border-amber-800/80 mb-2">
-          Цель достигнута! 🏆
-        </span>
+        {/* Заголовок и награда XP */}
+        <div className="flex items-center justify-center gap-2 mb-2 flex-wrap">
+          <span className="inline-block px-3 py-1 rounded-full text-[11px] font-bold tracking-wider uppercase bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-200 dark:border-amber-800/80">
+            Цель достигнута! 🏆
+          </span>
+          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-black uppercase bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/80 shadow-sm">
+            +50 XP ✨
+          </span>
+        </div>
 
         <h3 className="text-lg font-bold text-slate-900 dark:text-white line-clamp-2 px-2 mt-1">
           {celebratingGoal.title}

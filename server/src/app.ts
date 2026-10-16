@@ -6,7 +6,8 @@ import dotenv from 'dotenv';
 import authRoutes from './routes/auth';
 import adminRoutes from './routes/admin';
 import { db, client } from './db';
-import { users } from './db/schema';
+import { users, activityLogs } from './db/schema';
+import { extractClientIp, resolveClientCity } from './utils/geoIp';
 
 // Загрузка переменных окружения
 dotenv.config();
@@ -36,6 +37,10 @@ export async function ensureDbInitialized() {
       { name: 'is_today_goal', sql: 'ALTER TABLE goals ADD COLUMN is_today_goal INTEGER DEFAULT 0' },
       { name: 'completed_at', sql: 'ALTER TABLE goals ADD COLUMN completed_at TEXT' },
       { name: 'role', sql: "ALTER TABLE users ADD COLUMN role TEXT DEFAULT 'user'" },
+      { name: 'last_ip', sql: 'ALTER TABLE users ADD COLUMN last_ip TEXT' },
+      { name: 'last_city', sql: 'ALTER TABLE users ADD COLUMN last_city TEXT' },
+      { name: 'ip_address', sql: 'ALTER TABLE activity_logs ADD COLUMN ip_address TEXT' },
+      { name: 'city', sql: 'ALTER TABLE activity_logs ADD COLUMN city TEXT' },
     ];
 
     for (const col of columnsToAdd) {
@@ -103,13 +108,52 @@ app.use('*', cors({
     return clientOrigin;
   },
   allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowHeaders: ['Content-Type', 'Authorization', 'X-User-Id'],
+  allowHeaders: ['Content-Type', 'Authorization', 'X-User-Id', 'X-Client-Timezone', 'X-Client-City'],
 }));
 
 // Промежуточный middleware для гарантии инициализации БД
 app.use('*', async (c, next) => {
   await ensureDbInitialized();
   await next();
+});
+
+const userActivityThrottle = new Map<string, number>();
+
+// Middleware отслеживания активности пользователей (IP, город, время последнего визита)
+app.use('*', async (c, next) => {
+  await next();
+
+  const userId = c.req.header('X-User-Id');
+  if (userId && !c.req.path.startsWith('/api/admin')) {
+    const lastTracked = userActivityThrottle.get(userId) || 0;
+    const nowMs = Date.now();
+    // Обновляем активность не чаще одного раза в 2 минуты для оптимизации БД
+    if (nowMs - lastTracked > 120_000) {
+      userActivityThrottle.set(userId, nowMs);
+      const ip = extractClientIp(c);
+      resolveClientCity(c, ip).then(async (city) => {
+        try {
+          const nowIso = new Date().toISOString();
+          await db.update(users).set({ 
+            lastLogin: nowIso,
+            lastIp: ip, 
+            lastCity: city 
+          }).where(eq(users.id, userId));
+
+          await db.insert(activityLogs).values({
+            id: crypto.randomUUID(),
+            userId,
+            action: 'active',
+            ipAddress: ip,
+            city,
+            createdAt: nowIso,
+          });
+        } catch {
+          // Игнорируем фоновые ошибки трекинга
+        }
+      }).catch(() => {});
+    }
+  }
 });
 
 // Подключаем маршруты
