@@ -238,11 +238,34 @@ export function CircularAnalyticsView({ goals, tasks }: CircularAnalyticsViewPro
   }, [chartSegments, hoveredSliceId]);
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-300">
+    <div className="space-y-6 animate-in fade-in duration-300 w-full max-w-full overflow-hidden">
       {/* ПАНЕЛЬ УПРАВЛЕНИЯ ПЕРИОДОМ И МЕТРИКОЙ */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white dark:bg-slate-800/80 p-3 sm:p-4 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
-        {/* Фильтр периода */}
-        <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-900/60 p-1 rounded-xl border border-slate-200 dark:border-slate-700/60 overflow-x-auto">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white dark:bg-slate-800/80 p-3 sm:p-4 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm w-full max-w-full">
+        {/* Фильтр периода: МОБИЛЬНЫЙ (4 равные колонки) */}
+        <div className="grid grid-cols-4 gap-1 bg-slate-100 dark:bg-slate-900/60 p-1 rounded-xl border border-slate-200 dark:border-slate-700/60 w-full sm:hidden">
+          {[
+            { id: 'week', label: '7 дн' },
+            { id: 'month', label: '30 дн' },
+            { id: 'quarter', label: 'Квартал' },
+            { id: 'all', label: 'Всё' },
+          ].map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setTimeRange(tab.id as TimeRange)}
+              className={cn(
+                "px-2 py-1.5 rounded-lg text-xs font-semibold transition-all text-center truncate",
+                timeRange === tab.id
+                  ? "bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm"
+                  : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+              )}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Фильтр периода: ДЕСКТОПНЫЙ (100% как было раньше) */}
+        <div className="hidden sm:flex items-center gap-1 bg-slate-100 dark:bg-slate-900/60 p-1 rounded-xl border border-slate-200 dark:border-slate-700/60 overflow-x-auto">
           {[
             { id: 'week', label: 'Неделя (7 дн)' },
             { id: 'month', label: 'Месяц (30 дн)' },
@@ -264,8 +287,38 @@ export function CircularAnalyticsView({ goals, tasks }: CircularAnalyticsViewPro
           ))}
         </div>
 
-        {/* Переключатель разреза диаграммы */}
-        <div className="flex items-center gap-1.5 self-start sm:self-auto overflow-x-auto">
+        {/* Переключатель разреза: МОБИЛЬНЫЙ (3 равные колонки) */}
+        <div className="grid grid-cols-3 gap-1 w-full sm:hidden">
+          {[
+            { id: 'categories', label: 'Сферы', icon: Layers },
+            { id: 'status', label: 'Статус', icon: CheckCircle2 },
+            { id: 'xp', label: 'Опыт XP', icon: Zap },
+          ].map((tab) => {
+            const Icon = tab.icon;
+            const isSelected = metric === tab.id;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => {
+                  setMetric(tab.id as ChartMetric);
+                  setHoveredSliceId(null);
+                }}
+                className={cn(
+                  "flex items-center justify-center gap-1 px-2 py-1.5 rounded-xl text-xs font-semibold transition-all border text-center",
+                  isSelected
+                    ? "bg-indigo-50 border-indigo-200 text-indigo-700 dark:bg-indigo-950/60 dark:border-indigo-800 dark:text-indigo-300 shadow-sm"
+                    : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700"
+                )}
+              >
+                <Icon className={cn("h-3.5 w-3.5 shrink-0", isSelected ? "text-indigo-600 dark:text-indigo-400" : "text-slate-400")} />
+                <span className="truncate">{tab.label}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Переключатель разреза: ДЕСКТОПНЫЙ (100% как было раньше) */}
+        <div className="hidden sm:flex items-center gap-1.5 self-auto overflow-x-auto">
           {[
             { id: 'categories', label: 'Сферы жизни', icon: Layers },
             { id: 'status', label: 'Статус задач', icon: CheckCircle2 },

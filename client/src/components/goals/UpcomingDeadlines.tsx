@@ -34,7 +34,7 @@ export function UpcomingDeadlines({ onOpenCreateGoal, activeHorizon = 'all' }: U
 
   return (
     <div className={cn(
-      "mb-8 rounded-xl border p-5 shadow-sm transition-all",
+      "mb-8 rounded-xl border p-3.5 sm:p-5 shadow-sm transition-all w-full max-w-full overflow-hidden",
       "bg-gradient-to-br from-indigo-50/80 via-white to-indigo-50/30 border-indigo-100",
       "dark:from-slate-800/90 dark:via-slate-800/50 dark:to-slate-900 dark:border-slate-700"
     )}>

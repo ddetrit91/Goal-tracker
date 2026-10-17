@@ -108,11 +108,11 @@ export function GuideDetailModal({ guide, isOpen, onClose }: GuideDetailModalPro
           </div>
 
           {/* ВКЛАДКИ НАВИГАЦИИ ПО ГАЙДУ */}
-          <div className="flex items-center gap-1 mt-5 pt-1 overflow-x-auto">
+          <div className="grid grid-cols-3 gap-1 mt-5 pt-1 w-full">
             {[
-              { id: 'steps', label: 'Пошаговый метод', icon: BookOpen },
-              { id: 'application', label: 'Как применять в трекере', icon: Lightbulb },
-              { id: 'checklist', label: 'Чек-лист & Совет', icon: CheckSquare },
+              { id: 'steps', label: 'Пошаговый метод', shortLabel: 'Метод', icon: BookOpen },
+              { id: 'application', label: 'Как применять в трекере', shortLabel: 'В трекере', icon: Lightbulb },
+              { id: 'checklist', label: 'Чек-лист & Совет', shortLabel: 'Чек-лист', icon: CheckSquare },
             ].map((tab) => {
               const Icon = tab.icon;
               const isActive = activeTab === tab.id;
@@ -120,14 +120,15 @@ export function GuideDetailModal({ guide, isOpen, onClose }: GuideDetailModalPro
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id as typeof activeTab)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
+                  className={`flex items-center justify-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1.5 rounded-xl text-xs font-bold transition-all text-center truncate ${
                     isActive
                       ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm border border-slate-200 dark:border-slate-700'
                       : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                   }`}
                 >
-                  <Icon className="h-3.5 w-3.5" />
-                  <span>{tab.label}</span>
+                  <Icon className="h-3.5 w-3.5 shrink-0" />
+                  <span className="hidden sm:inline truncate">{tab.label}</span>
+                  <span className="sm:hidden truncate">{tab.shortLabel}</span>
                 </button>
               );
             })}

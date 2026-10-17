@@ -11,7 +11,7 @@ interface ToastProps {
 export function Toast({ message, isVisible, onClose }: ToastProps) {
   React.useEffect(() => {
     if (isVisible) {
-      const timer = setTimeout(onClose, 3000); // Автозакрытие через 3 сек
+      const timer = setTimeout(onClose, 4000); // Автозакрытие через 4 сек
       return () => clearTimeout(timer);
     }
   }, [isVisible, onClose]);
@@ -19,18 +19,21 @@ export function Toast({ message, isVisible, onClose }: ToastProps) {
   if (!isVisible) return null;
 
   return (
-    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[10000] animate-in slide-in-from-bottom-4 fade-in duration-300">
+    <div className="fixed bottom-20 sm:bottom-6 left-1/2 -translate-x-1/2 z-[10000] w-[calc(100%-1.5rem)] sm:w-auto max-w-md px-2 pointer-events-none animate-in slide-in-from-bottom-5 fade-in duration-300">
       <div className={cn(
-        "flex items-center gap-3 px-5 py-3 rounded-xl shadow-2xl border",
-        "bg-emerald-50 border-emerald-200 text-emerald-900"
+        "pointer-events-auto flex items-center gap-2.5 sm:gap-3 p-3 sm:px-4 sm:py-3 rounded-2xl shadow-xl border backdrop-blur-md transition-all",
+        "bg-white/95 dark:bg-slate-900/95 border-emerald-500/40 text-slate-800 dark:text-slate-100 shadow-emerald-500/10"
       )}>
-        <div className="flex items-center justify-center w-8 h-8 rounded-full bg-emerald-500 text-white shrink-0">
-          <CheckCircle2 className="h-5 w-5" />
+        <div className="flex items-center justify-center w-8 h-8 rounded-xl bg-emerald-500 text-white shrink-0 shadow-sm">
+          <CheckCircle2 className="h-4.5 w-4.5" />
         </div>
-        <p className="text-sm font-medium pr-2">{message}</p>
+        <p className="text-xs sm:text-sm font-medium flex-1 leading-snug">
+          {message}
+        </p>
         <button 
           onClick={onClose}
-          className="p-1 hover:bg-emerald-200/50 rounded-full transition-colors text-emerald-700"
+          className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 shrink-0"
+          aria-label="Закрыть уведомление"
         >
           <X className="h-4 w-4" />
         </button>

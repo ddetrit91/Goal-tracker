@@ -400,12 +400,12 @@ export function AdminPage() {
       {/* Вкладка: Активность */}
       {activeTab === 'activity' && (
         <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden shadow-sm">
-          <div className="p-4 sm:p-6 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center gap-2">
-            <h3 className="text-base sm:text-lg font-semibold text-slate-900 dark:text-white flex items-center gap-2 truncate">
+          <div className="p-4 sm:p-6 border-b border-slate-200 dark:border-slate-700 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+            <h3 className="text-base sm:text-lg font-semibold text-slate-900 dark:text-white flex items-center gap-2">
               <LogIn className="h-5 w-5 text-blue-500 shrink-0" /> 
               <span>Активность пользователей</span>
             </h3>
-            <span className="text-xs text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-700/50 px-2.5 py-1 rounded-full border border-slate-200 dark:border-slate-600 whitespace-nowrap shrink-0">
+            <span className="text-xs text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-700/50 px-2.5 py-1 rounded-full border border-slate-200 dark:border-slate-600 whitespace-nowrap self-start sm:self-auto">
               Пользователей: {activityLogs.length}
             </span>
           </div>

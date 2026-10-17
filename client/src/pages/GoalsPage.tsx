@@ -36,15 +36,57 @@ export function GoalsPage() {
     : getByHorizon(activeTab).filter(g => g.parentId === null);
 
   return (
-    <div className="max-w-4xl mx-auto p-4 sm:p-6 pb-28 md:pb-6">
-      <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 sm:mb-8">
+    <div className="w-full max-w-4xl mx-auto p-4 sm:p-6 pb-28 md:pb-6 overflow-x-hidden">
+      <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 mb-6 sm:mb-8">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white">Цели</h1>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Цели</h1>
           <p className="text-sm text-slate-500 mt-1 dark:text-slate-400">Декомпозиция больших целей на маленькие шаги</p>
         </div>
 
-        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-          {/* Переключатель вида: Список целей / Календарь целей */}
+        {/* МОБИЛЬНЫЙ ВИД КНОПОК: 3 колонки равной ширины */}
+        <div className="grid grid-cols-3 gap-2 w-full sm:hidden">
+          <div data-tour="calendar-toggle" className="col-span-2 grid grid-cols-2 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl border border-slate-200 dark:border-slate-700 h-10 items-center">
+            <button
+              onClick={() => setViewMode('tree')}
+              className={cn(
+                "flex items-center justify-center gap-1.5 px-1.5 h-full rounded-lg text-xs font-medium transition-all text-center whitespace-nowrap",
+                viewMode === 'tree'
+                  ? "bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm"
+                  : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+              )}
+            >
+              <List className="h-4.5 w-4.5 shrink-0" />
+              <span>Список</span>
+            </button>
+            <button
+              onClick={() => setViewMode('calendar')}
+              className={cn(
+                "flex items-center justify-center gap-1.5 px-1.5 h-full rounded-lg text-xs font-medium transition-all text-center whitespace-nowrap",
+                viewMode === 'calendar'
+                  ? "bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm"
+                  : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+              )}
+            >
+              <CalendarIcon className="h-4.5 w-4.5 shrink-0" />
+              <span>Календарь</span>
+            </button>
+          </div>
+
+          <Button 
+            onClick={() => { 
+              setSelectedParentId(null); 
+              setEditingGoal(null); 
+              setIsModalOpen(true); 
+            }} 
+            className="col-span-1 h-10 flex items-center justify-center gap-1.5 px-1.5 text-xs whitespace-nowrap font-semibold rounded-xl text-center"
+          >
+            <Plus className="h-4.5 w-4.5 shrink-0" />
+            <span>Новая цель</span>
+          </Button>
+        </div>
+
+        {/* ДЕСКТОПНЫЙ ВИД КНОПОК: как было изначально */}
+        <div className="hidden sm:flex items-center gap-2 sm:gap-3 shrink-0">
           <div data-tour="calendar-toggle" className="flex items-center bg-slate-100 dark:bg-slate-800 p-1 rounded-xl border border-slate-200 dark:border-slate-700">
             <button
               onClick={() => setViewMode('tree')}
@@ -75,7 +117,7 @@ export function GoalsPage() {
           <Button 
             onClick={() => { 
               setSelectedParentId(null); 
-              setEditingGoal(null);
+              setEditingGoal(null); 
               setIsModalOpen(true); 
             }} 
             className="gap-2 whitespace-nowrap shrink-0"

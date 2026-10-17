@@ -89,9 +89,9 @@ export function GuidesAcademyView({ goals, tasks }: GuidesAcademyViewProps) {
   };
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-300">
+    <div className="space-y-6 animate-in fade-in duration-300 w-full max-w-full overflow-hidden">
       {/* ВЕРХНИЙ БАННЕР АКАДЕМИИ С ПРОГРЕССОМ РАЗБЛОКИРОВКИ */}
-      <div className="relative overflow-hidden p-6 sm:p-7 rounded-3xl bg-gradient-to-br from-indigo-900 via-indigo-950 to-slate-900 text-white shadow-xl border border-indigo-800/60">
+      <div className="relative overflow-hidden p-5 sm:p-7 rounded-3xl bg-gradient-to-br from-indigo-900 via-indigo-950 to-slate-900 text-white shadow-xl border border-indigo-800/60 w-full max-w-full">
         <div className="absolute top-0 right-0 -translate-y-8 translate-x-8 w-64 h-64 bg-indigo-500/20 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute bottom-0 right-1/4 w-48 h-48 bg-purple-500/20 rounded-full blur-3xl pointer-events-none" />
 
@@ -111,7 +111,7 @@ export function GuidesAcademyView({ goals, tasks }: GuidesAcademyViewProps) {
           </div>
 
           {/* ПЛАШКА СЧЁТЧИКА И ПРОГРЕСС-БАРА */}
-          <div className="bg-white/10 dark:bg-slate-900/40 backdrop-blur-md p-4 rounded-2xl border border-white/10 shrink-0 min-w-[220px]">
+          <div className="bg-white/10 dark:bg-slate-900/40 backdrop-blur-md p-4 rounded-2xl border border-white/10 shrink-0 w-full md:w-auto md:min-w-[220px]">
             <div className="flex items-center justify-between text-xs mb-1.5">
               <span className="text-indigo-200 font-semibold flex items-center gap-1">
                 <BookOpen className="h-3.5 w-3.5" />
@@ -141,9 +141,31 @@ export function GuidesAcademyView({ goals, tasks }: GuidesAcademyViewProps) {
       </div>
 
       {/* ПАНЕЛЬ ФИЛЬТРОВ */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white dark:bg-slate-800 p-3 sm:p-4 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
-        {/* Фильтр по статусу */}
-        <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-900/60 p-1 rounded-xl border border-slate-200 dark:border-slate-700/60 overflow-x-auto">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white dark:bg-slate-800 p-3 sm:p-4 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm w-full max-w-full">
+        {/* Фильтр по статусу: МОБИЛЬНЫЙ (3 колонки с полными надписями) */}
+        <div className="grid grid-cols-3 gap-1 bg-slate-100 dark:bg-slate-900/60 p-1 rounded-xl border border-slate-200 dark:border-slate-700/60 w-full sm:hidden">
+          {[
+            { id: 'all', label: `Все (${GOAL_GUIDES.length})` },
+            { id: 'unlocked', label: `Разблокированы (${unlockedCount})` },
+            { id: 'locked', label: `Ждут открытия (${GOAL_GUIDES.length - unlockedCount})` },
+          ].map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setStatusFilter(tab.id as typeof statusFilter)}
+              className={cn(
+                "px-1 py-1.5 rounded-lg text-[11px] font-semibold transition-all text-center leading-tight truncate",
+                statusFilter === tab.id
+                  ? "bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm"
+                  : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+              )}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Фильтр по статусу: ДЕСКТОПНЫЙ (100% как было раньше) */}
+        <div className="hidden sm:flex items-center gap-1 bg-slate-100 dark:bg-slate-900/60 p-1 rounded-xl border border-slate-200 dark:border-slate-700/60 overflow-x-auto">
           {[
             { id: 'all', label: `Все (${GOAL_GUIDES.length})` },
             { id: 'unlocked', label: `Разблокированы (${unlockedCount})` },
@@ -164,8 +186,60 @@ export function GuidesAcademyView({ goals, tasks }: GuidesAcademyViewProps) {
           ))}
         </div>
 
-        {/* Фильтр по направлениям */}
-        <div className="flex items-center gap-1.5 self-start sm:self-auto overflow-x-auto">
+        {/* Фильтр по направлениям: МОБИЛЬНЫЙ (2 аккуратных ряда на всю ширину) */}
+        <div className="flex flex-col gap-1.5 w-full sm:hidden">
+          {/* Верхний ряд: Все, Цели, Фокус */}
+          <div className="grid grid-cols-3 gap-1.5 w-full">
+            {[
+              { id: 'all', label: 'Все' },
+              { id: 'goals', label: 'Цели' },
+              { id: 'focus', label: 'Фокус' },
+            ].map((cat) => {
+              const isSelected = categoryFilter === cat.id;
+              return (
+                <button
+                  key={cat.id}
+                  onClick={() => setCategoryFilter(cat.id)}
+                  className={cn(
+                    "px-2 py-1.5 rounded-xl text-xs font-medium transition-all border text-center truncate",
+                    isSelected
+                      ? "bg-indigo-50 border-indigo-200 text-indigo-700 dark:bg-indigo-950/60 dark:border-indigo-800 dark:text-indigo-300 font-bold shadow-sm"
+                      : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700"
+                  )}
+                >
+                  {cat.label}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Нижний ряд: Время, Привычки */}
+          <div className="grid grid-cols-2 gap-1.5 w-full">
+            {[
+              { id: 'time', label: 'Время' },
+              { id: 'habits', label: 'Привычки' },
+            ].map((cat) => {
+              const isSelected = categoryFilter === cat.id;
+              return (
+                <button
+                  key={cat.id}
+                  onClick={() => setCategoryFilter(cat.id)}
+                  className={cn(
+                    "px-2 py-1.5 rounded-xl text-xs font-medium transition-all border text-center truncate",
+                    isSelected
+                      ? "bg-indigo-50 border-indigo-200 text-indigo-700 dark:bg-indigo-950/60 dark:border-indigo-800 dark:text-indigo-300 font-bold shadow-sm"
+                      : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700"
+                  )}
+                >
+                  {cat.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Фильтр по направлениям: ДЕСКТОПНЫЙ (100% как было раньше) */}
+        <div className="hidden sm:flex items-center gap-1.5 self-auto overflow-x-auto">
           {[
             { id: 'all', label: 'Все сферы' },
             { id: 'goals', label: 'Цели' },

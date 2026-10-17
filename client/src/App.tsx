@@ -116,12 +116,12 @@ function AppContent() {
   }, [goals, tasks, isAuthPage]);
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 relative transition-colors duration-300">
+    <div className="min-h-screen w-full max-w-full overflow-x-hidden bg-slate-50 dark:bg-slate-950 relative transition-colors duration-300">
       {/* УСЛОВНЫЙ РЕНДЕРИНГ: Показываем Navbar только если это НЕ страница авторизации */}
       {!isAuthPage && <Navbar />}
       
       {/* УСЛОВНЫЙ ОТСТУП: Учитываем мобильный верхний хедер (включая safe-area на iOS) и нижнюю панель навигации */}
-      <main className={!isAuthPage ? "pt-[calc(3.5rem+env(safe-area-inset-top,0px))] pb-24 md:pt-6 md:pb-6 md:pl-72" : ""}>
+      <main className={!isAuthPage ? "w-full max-w-full overflow-x-hidden pt-[calc(3.5rem+env(safe-area-inset-top,0px))] pb-24 md:pt-6 md:pb-6 md:pl-72" : "w-full max-w-full overflow-x-hidden"}>
         {!isAuthPage && Boolean(localStorage.getItem('user')) && <OnboardingTour />}
         <Routes>
           {/* Публичные маршруты */}

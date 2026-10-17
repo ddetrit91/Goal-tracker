@@ -101,10 +101,10 @@ export function AnalyticsPage() {
   }, [goals, tasks]);
 
   return (
-    <div className="max-w-4xl mx-auto p-4 sm:p-6 pb-28 md:pb-6">
-      <header className="mb-6 sm:mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div className="w-full max-w-4xl mx-auto p-4 sm:p-6 pb-28 md:pb-6 overflow-x-hidden">
+      <header className="mb-6 sm:mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white">Обзор и Аналитика</h1>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Обзор и Аналитика</h1>
           <p className="text-sm text-slate-500 mt-1 dark:text-slate-400">
             {viewMode === 'overview' && 'Геймификация, баланс сфер жизни и журнал побед'}
             {viewMode === 'charts' && 'Круговая диаграмма достижений и продуктивности'}
@@ -112,43 +112,43 @@ export function AnalyticsPage() {
           </p>
         </div>
 
-        <div className="flex items-center gap-2 sm:gap-3 shrink-0 flex-wrap">
-          {/* Переключатель вида: Обзор / Аналитика / Гайды (в едином стиле с разделом "Цели") */}
-          <div className="flex items-center bg-slate-100 dark:bg-slate-800 p-1 rounded-xl border border-slate-200 dark:border-slate-700">
+        <div className="w-full sm:w-auto shrink-0">
+          {/* Переключатель вида: Обзор / Аналитика / Гайды (равномерное распределение на мобильных) */}
+          <div className="grid grid-cols-3 sm:flex items-center bg-slate-100 dark:bg-slate-800 p-1 rounded-xl border border-slate-200 dark:border-slate-700 w-full sm:w-auto shadow-sm">
             <button
               onClick={() => setViewMode('overview')}
               className={cn(
-                "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap",
+                "flex items-center justify-center gap-1.5 px-2 sm:px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all whitespace-nowrap text-center",
                 viewMode === 'overview'
                   ? "bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm"
                   : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
               )}
             >
-              <LayoutDashboard className="h-4 w-4" />
+              <LayoutDashboard className="h-4.5 w-4.5 sm:h-4 sm:w-4 shrink-0" />
               <span>Обзор</span>
             </button>
             <button
               onClick={() => setViewMode('charts')}
               className={cn(
-                "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap",
+                "flex items-center justify-center gap-1.5 px-2 sm:px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all whitespace-nowrap text-center",
                 viewMode === 'charts'
                   ? "bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm"
                   : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
               )}
             >
-              <PieChart className="h-4 w-4" />
+              <PieChart className="h-4.5 w-4.5 sm:h-4 sm:w-4 shrink-0" />
               <span>Аналитика</span>
             </button>
             <button
               onClick={() => setViewMode('guides')}
               className={cn(
-                "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap",
+                "flex items-center justify-center gap-1.5 px-2 sm:px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all whitespace-nowrap text-center",
                 viewMode === 'guides'
                   ? "bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm"
                   : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
               )}
             >
-              <BookOpen className="h-4 w-4" />
+              <BookOpen className="h-4.5 w-4.5 sm:h-4 sm:w-4 shrink-0" />
               <span>Гайды</span>
             </button>
           </div>
