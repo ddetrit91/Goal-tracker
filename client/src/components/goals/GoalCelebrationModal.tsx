@@ -3,6 +3,7 @@ import * as React from 'react';
 import { useGoalStore } from '@/store/useGoalStore';
 import { Trophy, Sparkles, ArrowRight } from 'lucide-react';
 import confetti from 'canvas-confetti';
+import { playLevelUpSound, triggerHaptic } from '@/utils/soundEffects';
 
 const PRAISE_MESSAGES = [
   'Отличная работа! Каждый завершённый шаг делает тебя сильнее.',
@@ -21,6 +22,10 @@ export function GoalCelebrationModal() {
       // Выбираем мотивирующую цитату
       const randomMsg = PRAISE_MESSAGES[Math.floor(Math.random() * PRAISE_MESSAGES.length)] ?? 'Отличная работа! Каждый шаг делает тебя сильнее.';
       setPraise(randomMsg);
+
+      // Праздничный звук и тактильный отклик
+      playLevelUpSound();
+      triggerHaptic('success');
 
       // Запуск салюта конфетти
       try {

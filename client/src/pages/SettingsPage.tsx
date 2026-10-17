@@ -1,10 +1,22 @@
 import * as React from 'react';
 import { Button } from '@/components/common/Button';
-import { Download, Upload, RefreshCw, AlertTriangle, FileSpreadsheet } from 'lucide-react';
+import { Download, Upload, RefreshCw, AlertTriangle, FileSpreadsheet, Volume2, VolumeX, Smartphone } from 'lucide-react';
 import type { IBackupData } from '@/services/storage/storage.interface';
 import { ExportExcelModal } from '@/components/analytics/ExportExcelModal';
 import { useGoalStore } from '@/store/useGoalStore';
 import { useTaskStore } from '@/store/useTaskStore';
+import { cn } from '@/utils/cn';
+import { 
+  isSoundEnabled, 
+  setSoundEnabled, 
+  isHapticsEnabled, 
+  setHapticsEnabled,
+  playTaskCompleteSound,
+  playLevelUpSound,
+  playFrogFocusSound,
+  playEveningChimeSound,
+  triggerHaptic
+} from '@/utils/soundEffects';
 
 import { API_BASE } from '@/config/api';
 
@@ -21,7 +33,27 @@ export function SettingsPage() {
   const { tasks } = useTaskStore();
   const [isExcelModalOpen, setIsExcelModalOpen] = React.useState(false);
   const [isImporting, setIsImporting] = React.useState(false);
+  const [soundActive, setSoundActive] = React.useState(isSoundEnabled());
+  const [hapticsActive, setHapticsActive] = React.useState(isHapticsEnabled());
   const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  const handleToggleSound = () => {
+    const next = !soundActive;
+    setSoundActive(next);
+    setSoundEnabled(next);
+    if (next) {
+      playTaskCompleteSound();
+    }
+  };
+
+  const handleToggleHaptics = () => {
+    const next = !hapticsActive;
+    setHapticsActive(next);
+    setHapticsEnabled(next);
+    if (next) {
+      triggerHaptic('medium');
+    }
+  };
 
   const handleExport = async () => {
     try {
@@ -175,6 +207,131 @@ export function SettingsPage() {
           <p className="text-xs text-slate-500 mt-3 dark:text-slate-400">
             Экспортируйте данные в Excel для удобной аналитики или сохраняйте JSON-бэкапы, чтобы не потерять прогресс.
           </p>
+        </div>
+
+        {/* Блок Звуков и Тактильного отклика */}
+        <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm dark:bg-slate-800 dark:border-slate-700">
+          <div className="flex items-center gap-2 mb-4">
+            <Volume2 className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
+            <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-200">
+              Звуки и вибрация
+            </h2>
+          </div>
+
+          <div className="space-y-4">
+            {/* Тумблер звука */}
+            <div className="flex items-center justify-between p-3.5 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-700/80">
+              <div className="flex items-center gap-3 pr-2">
+                <div className="w-9 h-9 rounded-lg bg-indigo-50 dark:bg-indigo-950/40 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shrink-0">
+                  {soundActive ? <Volume2 className="h-5 w-5" /> : <VolumeX className="h-5 w-5 text-slate-400" />}
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">Звуковые эффекты</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    Приятные щелчки чекбоксов, аккорды победы и звуки ритуалов
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={handleToggleSound}
+                className={cn(
+                  "relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none",
+                  soundActive ? "bg-indigo-600" : "bg-slate-300 dark:bg-slate-600"
+                )}
+                role="switch"
+                aria-checked={soundActive}
+              >
+                <span
+                  className={cn(
+                    "pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out",
+                    soundActive ? "translate-x-5" : "translate-x-0"
+                  )}
+                />
+              </button>
+            </div>
+
+            {/* Тумблер вибрации */}
+            <div className="flex items-center justify-between p-3.5 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-700/80">
+              <div className="flex items-center gap-3 pr-2">
+                <div className="w-9 h-9 rounded-lg bg-purple-50 dark:bg-purple-950/40 flex items-center justify-center text-purple-600 dark:text-purple-400 shrink-0">
+                  <Smartphone className="h-5 w-5" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">Тактильный отклик (вибрация)</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    Мягкий виброотклик на смартфонах при нажатии чекбоксов и победах
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={handleToggleHaptics}
+                className={cn(
+                  "relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none",
+                  hapticsActive ? "bg-purple-600" : "bg-slate-300 dark:bg-slate-600"
+                )}
+                role="switch"
+                aria-checked={hapticsActive}
+              >
+                <span
+                  className={cn(
+                    "pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out",
+                    hapticsActive ? "translate-x-5" : "translate-x-0"
+                  )}
+                />
+              </button>
+            </div>
+
+            {/* Кнопки проверки эффектов */}
+            <div>
+              <p className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-2">
+                Прослушать звуки:
+              </p>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    playTaskCompleteSound();
+                    triggerHaptic('light');
+                  }}
+                  className="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-750 transition-colors shadow-sm text-center"
+                >
+                  ✓ Щелчок Pop
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    playFrogFocusSound();
+                    triggerHaptic('medium');
+                  }}
+                  className="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-750 transition-colors shadow-sm text-center"
+                >
+                  🐸 Лягушка дня
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    playLevelUpSound();
+                    triggerHaptic('success');
+                  }}
+                  className="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-750 transition-colors shadow-sm text-center"
+                >
+                  🏆 Новый уровень
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    playEveningChimeSound();
+                    triggerHaptic('light');
+                  }}
+                  className="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-750 transition-colors shadow-sm text-center"
+                >
+                  🌙 Вечерний звон
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Блок Опасной зоны */}

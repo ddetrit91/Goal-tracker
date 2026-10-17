@@ -7,6 +7,7 @@ import { Star, Check, Trash2, Target, Pencil, Copy } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import type { Task } from '@/types/task';
 import { calculateTaskXP } from '@/utils/gamification';
+import { playTaskCompleteSound, playTaskUncheckSound, triggerHaptic } from '@/utils/soundEffects';
 
 interface TaskItemProps {
   task: Task;
@@ -57,8 +58,10 @@ export function TaskItem({ task, onToggleFocus, onEdit, onDuplicate }: TaskItemP
 
   const handleCheck = async () => {
     const willBeCompleted = !task.isCompleted;
-    await toggleComplete(task.id);
     if (willBeCompleted) {
+      playTaskCompleteSound();
+      triggerHaptic('light');
+
       const earned = calculateTaskXP(task);
       setFloatingXP(earned);
       setTimeout(() => setFloatingXP(null), 1800);
@@ -69,6 +72,15 @@ export function TaskItem({ task, onToggleFocus, onEdit, onDuplicate }: TaskItemP
         origin: { y: 0.6 },
         colors: ['#6366f1', '#10b981', '#f59e0b'],
       });
+    } else {
+      playTaskUncheckSound();
+      triggerHaptic('light');
+    }
+
+    try {
+      await toggleComplete(task.id);
+    } catch (err) {
+      console.error('Failed to toggle task completion:', err);
     }
   };
 

@@ -97,7 +97,7 @@ export function GoalsPage() {
                   : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
               )}
             >
-              <List className="h-4 w-4" />
+              <List className="h-4.5 w-4.5" />
               <span>Список</span>
             </button>
             <button
@@ -109,7 +109,7 @@ export function GoalsPage() {
                   : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
               )}
             >
-              <CalendarIcon className="h-4 w-4" />
+              <CalendarIcon className="h-4.5 w-4.5" />
               <span>Календарь</span>
             </button>
           </div>
@@ -122,7 +122,7 @@ export function GoalsPage() {
             }} 
             className="gap-2 whitespace-nowrap shrink-0"
           >
-            <Plus className="h-4 w-4" />
+            <Plus className="h-4.5 w-4.5" />
             <span>Новая цель</span>
           </Button>
         </div>

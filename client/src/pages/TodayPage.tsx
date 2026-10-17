@@ -9,7 +9,9 @@ import { ProgressBar } from '@/components/common/ProgressBar';
 import { TaskEditModal } from '@/components/goals/TaskEditModal';
 import { toISODateString, formatDate } from '@/utils/date';
 import { getGamificationStats } from '@/utils/gamification';
-import { CalendarDays, CheckCircle2, Target } from 'lucide-react';
+import { CalendarDays, CheckCircle2, Target, Sun, Moon } from 'lucide-react';
+import { MorningRitualModal } from '@/components/today/MorningRitualModal';
+import { EveningReflectionModal } from '@/components/today/EveningReflectionModal';
 import { cn } from '@/utils/cn';
 import confetti from 'canvas-confetti';
 import type { Task } from '@/types/task';
@@ -21,10 +23,34 @@ export function TodayPage() {
   const { goals, fetchGoals, updateGoal } = useGoalStore();
   const [editingTask, setEditingTask] = React.useState<Task | null>(null);
   const [floatingGoalXP, setFloatingGoalXP] = React.useState<string | null>(null);
+  const [isMorningRitualOpen, setIsMorningRitualOpen] = React.useState(false);
+  const [isEveningRitualOpen, setIsEveningRitualOpen] = React.useState(false);
 
   React.useEffect(() => {
     Promise.all([fetchTasks(), fetchGoals()]);
   }, [fetchTasks, fetchGoals]);
+
+  // Автоматический запуск ритуала дня по времени суток (1 раз в день)
+  React.useEffect(() => {
+    const hour = new Date().getHours();
+    const morningKey = `morning_ritual_seen_${today}`;
+    const eveningKey = `evening_ritual_seen_${today}`;
+
+    // Утро: с 05:00 до 12:00
+    if (hour >= 5 && hour < 12) {
+      if (!localStorage.getItem(morningKey)) {
+        setIsMorningRitualOpen(true);
+        localStorage.setItem(morningKey, 'true');
+      }
+    } 
+    // Вечер: с 20:00 до 04:00
+    else if (hour >= 20 || hour < 4) {
+      if (!localStorage.getItem(eveningKey)) {
+        setIsEveningRitualOpen(true);
+        localStorage.setItem(eveningKey, 'true');
+      }
+    }
+  }, [today]);
 
   // Статистика геймификации и уровень игрока (как на странице "Обзор")
   const gamificationStats = React.useMemo(() => getGamificationStats(goals, tasks), [goals, tasks]);
@@ -168,6 +194,26 @@ export function TodayPage() {
               </span>
             </div>
           </Link>
+        </div>
+
+        {/* Панель ритуалов дня (Утренний фокус и Вечерняя рефлексия) */}
+        <div className="flex items-center gap-2.5 sm:gap-3">
+          <button
+            type="button"
+            onClick={() => setIsMorningRitualOpen(true)}
+            className="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-2xl bg-gradient-to-r from-amber-500/10 to-orange-500/10 hover:from-amber-500/20 hover:to-orange-500/20 border border-amber-300/70 dark:border-amber-800/70 text-amber-900 dark:text-amber-200 font-bold text-xs sm:text-sm shadow-sm transition-all hover:scale-[1.01] active:scale-[0.98]"
+          >
+            <Sun className="h-4 w-4 text-amber-500 shrink-0" />
+            <span className="truncate">🌅 Утренний фокус</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setIsEveningRitualOpen(true)}
+            className="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-2xl bg-gradient-to-r from-indigo-500/10 to-purple-500/10 hover:from-indigo-500/20 hover:to-purple-500/20 border border-indigo-300/70 dark:border-indigo-800/70 text-indigo-900 dark:text-indigo-200 font-bold text-xs sm:text-sm shadow-sm transition-all hover:scale-[1.01] active:scale-[0.98]"
+          >
+            <Moon className="h-4 w-4 text-indigo-500 shrink-0" />
+            <span className="truncate">🌙 Итоги дня</span>
+          </button>
         </div>
 
         {/* Блок фокуса на эффективную цель в едином стиле с "Главные фокусы дня" */}
@@ -325,6 +371,16 @@ export function TodayPage() {
         isOpen={!!editingTask} 
         onClose={() => setEditingTask(null)} 
         task={editingTask} 
+      />
+
+      {/* Модальные окна ритуалов дня */}
+      <MorningRitualModal
+        isOpen={isMorningRitualOpen}
+        onClose={() => setIsMorningRitualOpen(false)}
+      />
+      <EveningReflectionModal
+        isOpen={isEveningRitualOpen}
+        onClose={() => setIsEveningRitualOpen(false)}
       />
     </div>
   );
