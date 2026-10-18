@@ -72,3 +72,18 @@ export const settings = sqliteTable('settings', {
   value: text('value').notNull(),
   updatedAt: text('updated_at').default(sql`(CURRENT_TIMESTAMP)`),
 });
+
+export const events = sqliteTable('events', {
+  id: text('id').primaryKey(),
+  userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  title: text('title').notNull(),
+  description: text('description'),
+  eventDate: text('event_date').notNull(),
+  eventTime: text('event_time'),
+  remindDaysBefore: integer('remind_days_before').default(2),
+  isCompleted: integer('is_completed', { mode: 'boolean' }).default(false),
+  completedAt: text('completed_at'),
+  category: text('category').default('personal'),
+  createdAt: text('created_at').default(sql`(CURRENT_TIMESTAMP)`),
+});
+

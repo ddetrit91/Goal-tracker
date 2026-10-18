@@ -7,7 +7,11 @@ import { Star, AlertCircle, CheckCircle } from 'lucide-react';
 import { cn } from '@/utils/cn';
 import type { Task } from '@/types/task';
 
-export function DailyFocus() {
+interface DailyFocusProps {
+  onStartFocus?: (task: Task) => void;
+}
+
+export function DailyFocus({ onStartFocus }: DailyFocusProps = {}) {
   const { tasks, toggleDailyFocus } = useTaskStore();
   const { goals } = useGoalStore();
   const [editingTask, setEditingTask] = React.useState<Task | null>(null);
@@ -67,6 +71,7 @@ export function DailyFocus() {
                 task={task} 
                 onToggleFocus={toggleDailyFocus} 
                 onEdit={(t) => setEditingTask(t)}
+                onStartFocus={onStartFocus}
               />
             </li>
           ))}

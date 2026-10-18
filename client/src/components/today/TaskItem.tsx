@@ -3,7 +3,7 @@ import { useTaskStore } from '@/store/useTaskStore';
 import { useGoalStore } from '@/store/useGoalStore';
 import { cn } from '@/utils/cn';
 import { CategoryBadge } from '@/components/common/CategoryBadge';
-import { Star, Check, Trash2, Target, Pencil, Copy } from 'lucide-react';
+import { Star, Check, Trash2, Target, Pencil, Copy, Timer } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import type { Task } from '@/types/task';
 import { calculateTaskXP } from '@/utils/gamification';
@@ -14,9 +14,10 @@ interface TaskItemProps {
   onToggleFocus?: (id: string) => void;
   onEdit?: (task: Task) => void;
   onDuplicate?: (task: Task) => void;
+  onStartFocus?: (task: Task) => void;
 }
 
-export function TaskItem({ task, onToggleFocus, onEdit, onDuplicate }: TaskItemProps) {
+export function TaskItem({ task, onToggleFocus, onEdit, onDuplicate, onStartFocus }: TaskItemProps) {
   const { toggleComplete, deleteTask, createTask } = useTaskStore();
   const { goals } = useGoalStore();
   const [floatingXP, setFloatingXP] = React.useState<number | null>(null);
@@ -164,6 +165,17 @@ export function TaskItem({ task, onToggleFocus, onEdit, onDuplicate }: TaskItemP
                 title="Сделать главным фокусом дня"
               >
                 <Star className={cn('h-4 w-4', task.isDailyFocus && 'fill-current')} />
+              </button>
+            )}
+
+            {/* Кнопка запуска режима фокуса (Помодоро) */}
+            {onStartFocus && !task.isCompleted && (
+              <button
+                onClick={() => onStartFocus(task)}
+                className="p-1.5 text-indigo-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-full transition-colors opacity-100 md:opacity-0 md:group-hover:opacity-100 dark:text-indigo-400 dark:hover:text-indigo-300 dark:hover:bg-indigo-950/40"
+                title="Запустить Помодоро-таймер (25 мин) ⏱"
+              >
+                <Timer className="h-4 w-4" />
               </button>
             )}
 

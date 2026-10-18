@@ -5,9 +5,9 @@ import { z } from 'zod';
 import bcrypt from 'bcryptjs';
 import { randomUUID } from 'crypto';
 import { db } from '../db';
-// <-- ДОБАВЛЕНО: activityLogs для записи в журнал
-import { users, goals as goalsTable, tasks as tasksTable, categories as categoriesTable, activityLogs } from '../db/schema';
-import { eq, and } from 'drizzle-orm';
+// <-- ДОБАВЛЕНО: activityLogs для записи в журнал, events для событий
+import { users, goals as goalsTable, tasks as tasksTable, categories as categoriesTable, activityLogs, events as eventsTable } from '../db/schema';
+import { eq, and, asc } from 'drizzle-orm';
 import { extractClientIp, resolveClientCity } from '../utils/geoIp';
 
 const auth = new Hono();
@@ -544,6 +544,100 @@ auth.delete('/categories/:id', async (c) => {
   }
 });
 
+// --- СОБЫТИЯ (EVENTS) ---
+
+const createEventSchema = z.object({
+  title: z.string().min(1, 'Название события обязательно'),
+  description: z.string().optional().nullable(),
+  eventDate: z.string().min(1, 'Дата события обязательна'),
+  eventTime: z.string().optional().nullable(),
+  remindDaysBefore: z.number().int().min(0).default(2),
+  category: z.string().default('personal'),
+});
+
+auth.get('/events', async (c) => {
+  const userId = c.req.header('X-User-Id');
+  if (!userId) return c.json({ error: 'Unauthorized' }, 401);
+
+  try {
+    const userEvents = await db.select().from(eventsTable)
+      .where(eq(eventsTable.userId, userId))
+      .orderBy(asc(eventsTable.eventDate), asc(eventsTable.eventTime));
+    return c.json(userEvents);
+  } catch (error) {
+    console.error('Fetch events error:', error);
+    return c.json({ error: 'Ошибка при получении событий' }, 500);
+  }
+});
+
+auth.post('/events', zValidator('json', createEventSchema), async (c) => {
+  const userId = c.req.header('X-User-Id');
+  if (!userId) return c.json({ error: 'Unauthorized' }, 401);
+
+  try {
+    const body = c.req.valid('json');
+    const result = await db.insert(eventsTable).values({
+      id: randomUUID(),
+      userId,
+      title: body.title,
+      description: body.description || null,
+      eventDate: body.eventDate,
+      eventTime: body.eventTime || null,
+      remindDaysBefore: body.remindDaysBefore ?? 2,
+      category: body.category || 'personal',
+      isCompleted: false,
+      completedAt: null,
+    } as any).returning();
+
+    return c.json((result as any[])[0], 201);
+  } catch (error) {
+    console.error('Create event error:', error);
+    return c.json({ error: 'Ошибка при создании события' }, 500);
+  }
+});
+
+auth.put('/events/:id', async (c) => {
+  const userId = c.req.header('X-User-Id');
+  if (!userId) return c.json({ error: 'Unauthorized' }, 401);
+
+  try {
+    const id = c.req.param('id');
+    const body = await c.req.json();
+
+    const existing = await db.select().from(eventsTable).where(
+      and(eq(eventsTable.id, id), eq(eventsTable.userId, userId))
+    ).get();
+
+    if (!existing) return c.json({ error: 'Событие не найдено' }, 404);
+
+    const result = await db.update(eventsTable).set(body).where(eq(eventsTable.id, id)).returning();
+    return c.json((result as any[])[0]);
+  } catch (error) {
+    console.error('Update event error:', error);
+    return c.json({ error: 'Ошибка обновления события' }, 500);
+  }
+});
+
+auth.delete('/events/:id', async (c) => {
+  const userId = c.req.header('X-User-Id');
+  if (!userId) return c.json({ error: 'Unauthorized' }, 401);
+
+  try {
+    const id = c.req.param('id');
+    const existing = await db.select().from(eventsTable).where(
+      and(eq(eventsTable.id, id), eq(eventsTable.userId, userId))
+    ).get();
+
+    if (!existing) return c.json({ error: 'Событие не найдено' }, 404);
+
+    await db.delete(eventsTable).where(eq(eventsTable.id, id));
+    return c.json({ message: 'Событие успешно удалено' });
+  } catch (error) {
+    console.error('Delete event error:', error);
+    return c.json({ error: 'Ошибка удаления события' }, 500);
+  }
+});
+
 // --- РЕЗЕРВНОЕ КОПИРОВАНИЕ И ОЧИСТКА ДАННЫХ ---
 
 auth.get('/backup', async (c) => {
@@ -654,6 +748,7 @@ auth.delete('/user/data', async (c) => {
   if (!userId) return c.json({ error: 'Unauthorized' }, 401);
 
   try {
+    await db.delete(eventsTable).where(eq(eventsTable.userId, userId));
     await db.delete(tasksTable).where(eq(tasksTable.userId, userId));
     await db.delete(goalsTable).where(eq(goalsTable.userId, userId));
     await db.delete(categoriesTable).where(eq(categoriesTable.userId, userId));

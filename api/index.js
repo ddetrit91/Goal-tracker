@@ -30,6 +30,7 @@ var schema_exports = {};
 __export(schema_exports, {
   activityLogs: () => activityLogs,
   categories: () => categories,
+  events: () => events,
   goals: () => goals,
   settings: () => settings,
   tasks: () => tasks,
@@ -104,6 +105,19 @@ var settings = sqliteTable("settings", {
   value: text("value").notNull(),
   updatedAt: text("updated_at").default(sql`(CURRENT_TIMESTAMP)`)
 });
+var events = sqliteTable("events", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  title: text("title").notNull(),
+  description: text("description"),
+  eventDate: text("event_date").notNull(),
+  eventTime: text("event_time"),
+  remindDaysBefore: integer("remind_days_before").default(2),
+  isCompleted: integer("is_completed", { mode: "boolean" }).default(false),
+  completedAt: text("completed_at"),
+  category: text("category").default("personal"),
+  createdAt: text("created_at").default(sql`(CURRENT_TIMESTAMP)`)
+});
 
 // server/src/db/index.ts
 import dotenv from "dotenv";
@@ -135,7 +149,7 @@ var client = createClient({
 var db = drizzle(client, { schema: schema_exports });
 
 // server/src/routes/auth.ts
-import { eq, and } from "drizzle-orm";
+import { eq, and, asc } from "drizzle-orm";
 
 // server/src/utils/geoIp.ts
 var geoCache = /* @__PURE__ */ new Map();
@@ -712,6 +726,81 @@ auth.delete("/categories/:id", async (c) => {
     return c.json({ error: "\u041E\u0448\u0438\u0431\u043A\u0430 \u0443\u0434\u0430\u043B\u0435\u043D\u0438\u044F \u043A\u0430\u0442\u0435\u0433\u043E\u0440\u0438\u0438" }, 500);
   }
 });
+var createEventSchema = z.object({
+  title: z.string().min(1, "\u041D\u0430\u0437\u0432\u0430\u043D\u0438\u0435 \u0441\u043E\u0431\u044B\u0442\u0438\u044F \u043E\u0431\u044F\u0437\u0430\u0442\u0435\u043B\u044C\u043D\u043E"),
+  description: z.string().optional().nullable(),
+  eventDate: z.string().min(1, "\u0414\u0430\u0442\u0430 \u0441\u043E\u0431\u044B\u0442\u0438\u044F \u043E\u0431\u044F\u0437\u0430\u0442\u0435\u043B\u044C\u043D\u0430"),
+  eventTime: z.string().optional().nullable(),
+  remindDaysBefore: z.number().int().min(0).default(2),
+  category: z.string().default("personal")
+});
+auth.get("/events", async (c) => {
+  const userId = c.req.header("X-User-Id");
+  if (!userId) return c.json({ error: "Unauthorized" }, 401);
+  try {
+    const userEvents = await db.select().from(events).where(eq(events.userId, userId)).orderBy(asc(events.eventDate), asc(events.eventTime));
+    return c.json(userEvents);
+  } catch (error) {
+    console.error("Fetch events error:", error);
+    return c.json({ error: "\u041E\u0448\u0438\u0431\u043A\u0430 \u043F\u0440\u0438 \u043F\u043E\u043B\u0443\u0447\u0435\u043D\u0438\u0438 \u0441\u043E\u0431\u044B\u0442\u0438\u0439" }, 500);
+  }
+});
+auth.post("/events", zValidator("json", createEventSchema), async (c) => {
+  const userId = c.req.header("X-User-Id");
+  if (!userId) return c.json({ error: "Unauthorized" }, 401);
+  try {
+    const body = c.req.valid("json");
+    const result = await db.insert(events).values({
+      id: randomUUID(),
+      userId,
+      title: body.title,
+      description: body.description || null,
+      eventDate: body.eventDate,
+      eventTime: body.eventTime || null,
+      remindDaysBefore: body.remindDaysBefore ?? 2,
+      category: body.category || "personal",
+      isCompleted: false,
+      completedAt: null
+    }).returning();
+    return c.json(result[0], 201);
+  } catch (error) {
+    console.error("Create event error:", error);
+    return c.json({ error: "\u041E\u0448\u0438\u0431\u043A\u0430 \u043F\u0440\u0438 \u0441\u043E\u0437\u0434\u0430\u043D\u0438\u0438 \u0441\u043E\u0431\u044B\u0442\u0438\u044F" }, 500);
+  }
+});
+auth.put("/events/:id", async (c) => {
+  const userId = c.req.header("X-User-Id");
+  if (!userId) return c.json({ error: "Unauthorized" }, 401);
+  try {
+    const id = c.req.param("id");
+    const body = await c.req.json();
+    const existing = await db.select().from(events).where(
+      and(eq(events.id, id), eq(events.userId, userId))
+    ).get();
+    if (!existing) return c.json({ error: "\u0421\u043E\u0431\u044B\u0442\u0438\u0435 \u043D\u0435 \u043D\u0430\u0439\u0434\u0435\u043D\u043E" }, 404);
+    const result = await db.update(events).set(body).where(eq(events.id, id)).returning();
+    return c.json(result[0]);
+  } catch (error) {
+    console.error("Update event error:", error);
+    return c.json({ error: "\u041E\u0448\u0438\u0431\u043A\u0430 \u043E\u0431\u043D\u043E\u0432\u043B\u0435\u043D\u0438\u044F \u0441\u043E\u0431\u044B\u0442\u0438\u044F" }, 500);
+  }
+});
+auth.delete("/events/:id", async (c) => {
+  const userId = c.req.header("X-User-Id");
+  if (!userId) return c.json({ error: "Unauthorized" }, 401);
+  try {
+    const id = c.req.param("id");
+    const existing = await db.select().from(events).where(
+      and(eq(events.id, id), eq(events.userId, userId))
+    ).get();
+    if (!existing) return c.json({ error: "\u0421\u043E\u0431\u044B\u0442\u0438\u0435 \u043D\u0435 \u043D\u0430\u0439\u0434\u0435\u043D\u043E" }, 404);
+    await db.delete(events).where(eq(events.id, id));
+    return c.json({ message: "\u0421\u043E\u0431\u044B\u0442\u0438\u0435 \u0443\u0441\u043F\u0435\u0448\u043D\u043E \u0443\u0434\u0430\u043B\u0435\u043D\u043E" });
+  } catch (error) {
+    console.error("Delete event error:", error);
+    return c.json({ error: "\u041E\u0448\u0438\u0431\u043A\u0430 \u0443\u0434\u0430\u043B\u0435\u043D\u0438\u044F \u0441\u043E\u0431\u044B\u0442\u0438\u044F" }, 500);
+  }
+});
 auth.get("/backup", async (c) => {
   const userId = c.req.header("X-User-Id");
   if (!userId) return c.json({ error: "Unauthorized" }, 401);
@@ -805,6 +894,7 @@ auth.delete("/user/data", async (c) => {
   const userId = c.req.header("X-User-Id");
   if (!userId) return c.json({ error: "Unauthorized" }, 401);
   try {
+    await db.delete(events).where(eq(events.userId, userId));
     await db.delete(tasks).where(eq(tasks.userId, userId));
     await db.delete(goals).where(eq(goals.userId, userId));
     await db.delete(categories).where(eq(categories.userId, userId));
@@ -1015,6 +1105,26 @@ async function ensureDbInitialized() {
   isInitialized = true;
   try {
     console.log("\u{1F527} Checking database schema & admin account...");
+    try {
+      await client.execute(`
+        CREATE TABLE IF NOT EXISTS events (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          title TEXT NOT NULL,
+          description TEXT,
+          event_date TEXT NOT NULL,
+          event_time TEXT,
+          remind_days_before INTEGER DEFAULT 2,
+          is_completed INTEGER DEFAULT 0,
+          completed_at TEXT,
+          category TEXT DEFAULT 'personal',
+          created_at TEXT DEFAULT (CURRENT_TIMESTAMP)
+        )
+      `);
+      console.log("\u2705 Events table verified/created");
+    } catch (e) {
+      console.warn("\u26A0\uFE0F Events table check warning:", e?.message);
+    }
     const columnsToAdd = [
       { name: "start_date", sql: "ALTER TABLE goals ADD COLUMN start_date TEXT" },
       { name: "status", sql: "ALTER TABLE goals ADD COLUMN status TEXT DEFAULT 'backlog'" },
@@ -1024,7 +1134,8 @@ async function ensureDbInitialized() {
       { name: "last_ip", sql: "ALTER TABLE users ADD COLUMN last_ip TEXT" },
       { name: "last_city", sql: "ALTER TABLE users ADD COLUMN last_city TEXT" },
       { name: "ip_address", sql: "ALTER TABLE activity_logs ADD COLUMN ip_address TEXT" },
-      { name: "city", sql: "ALTER TABLE activity_logs ADD COLUMN city TEXT" }
+      { name: "city", sql: "ALTER TABLE activity_logs ADD COLUMN city TEXT" },
+      { name: "completed_at", sql: "ALTER TABLE events ADD COLUMN completed_at TEXT" }
     ];
     for (const col of columnsToAdd) {
       try {

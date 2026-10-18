@@ -1,6 +1,7 @@
 // client/src/utils/gamification.ts
 import type { Goal } from '@/types/goal';
 import type { Task } from '@/types/task';
+import type { AppEvent } from '@/types/event';
 
 export function calculateTaskXP(task: Task): number {
   let xp = 10;
@@ -14,6 +15,10 @@ export function calculateGoalXP(goal: Goal): number {
   if (goal.priority === 'high') xp += 20;
   if (goal.priority === 'critical') xp += 30;
   return xp;
+}
+
+export function calculateEventXP(_event?: AppEvent): number {
+  return 20; // 20 XP за посещение / выполнение запланированного события
 }
 
 export interface RankItem {
@@ -46,10 +51,11 @@ export interface Achievement {
   xpReward: number;
 }
 
-export function getGamificationStats(goals: Goal[], tasks: Task[]) {
+export function getGamificationStats(goals: Goal[], tasks: Task[], events: AppEvent[] = []) {
   // Цель считается завершённой только если её статус 'completed' И прогресс достиг 100%
   const completedGoals = goals.filter((g) => g.status === 'completed' && (g.progress ?? 0) >= 100);
   const completedTasks = tasks.filter((t) => t.isCompleted);
+  const completedEvents = events.filter((e) => e.isCompleted);
   const completedFocusTasks = completedTasks.filter((t) => t.isDailyFocus);
   const visionGoals = goals.filter((g) => g.category === 'dream' || g.category === 'wishlist' || g.horizon === 'life');
   const highPriorityTasks = completedTasks.filter((t) => t.priority === 'high');
@@ -65,6 +71,9 @@ export function getGamificationStats(goals: Goal[], tasks: Task[]) {
   });
   completedGoals.forEach((g) => {
     baseXP += calculateGoalXP(g);
+  });
+  completedEvents.forEach((e) => {
+    baseXP += calculateEventXP(e);
   });
 
   // Расширенная коллекция достижений (16 ачивок)
@@ -229,6 +238,26 @@ export function getGamificationStats(goals: Goal[], tasks: Task[]) {
       total: 107,
       xpReward: 400,
     },
+    {
+      id: 'focus-zen',
+      title: 'Глубокое погружение',
+      description: 'Завершить 1 сессию Помодоро-фокуса (25 мин)',
+      icon: '⏱',
+      isUnlocked: (typeof window !== 'undefined' ? Number(localStorage.getItem('completed_focus_sessions_count') || '0') : 0) >= 1,
+      current: Math.min(1, typeof window !== 'undefined' ? Number(localStorage.getItem('completed_focus_sessions_count') || '0') : 0),
+      total: 1,
+      xpReward: 30,
+    },
+    {
+      id: 'focus-monk',
+      title: 'Дзен-мастер',
+      description: 'Завершить 5 сессий глубокого фокуса',
+      icon: '🧘',
+      isUnlocked: (typeof window !== 'undefined' ? Number(localStorage.getItem('completed_focus_sessions_count') || '0') : 0) >= 5,
+      current: Math.min(5, typeof window !== 'undefined' ? Number(localStorage.getItem('completed_focus_sessions_count') || '0') : 0),
+      total: 5,
+      xpReward: 80,
+    },
   ];
 
   // Бонусные очки за разблокированные достижения
@@ -236,7 +265,13 @@ export function getGamificationStats(goals: Goal[], tasks: Task[]) {
     .filter((a) => a.isUnlocked)
     .reduce((sum, a) => sum + a.xpReward, 0);
 
-  const totalXP = baseXP + unlockedBonusXP;
+  // Бонусные очки за сессии глубокого фокуса (+15 XP за каждую сессию)
+  const focusSessionsCount = typeof window !== 'undefined'
+    ? Number(localStorage.getItem('completed_focus_sessions_count') || '0')
+    : 0;
+  const focusXP = focusSessionsCount * 15;
+
+  const totalXP = baseXP + unlockedBonusXP + focusXP;
 
   // Определение уровня
   let currentRank: RankItem = RANKS[0] ?? { level: 0, title: 'Новичок', minXP: 0, icon: '🌱' };
@@ -277,6 +312,7 @@ export function getGamificationStats(goals: Goal[], tasks: Task[]) {
     cupsCount,
     completedGoalsCount: completedGoals.length,
     completedTasksCount: completedTasks.length,
+    focusSessionsCount,
     achievements,
   };
 }

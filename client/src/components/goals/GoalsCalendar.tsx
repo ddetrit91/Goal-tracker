@@ -2,6 +2,7 @@
 import * as React from 'react';
 import { useGoalStore } from '@/store/useGoalStore';
 import { useTaskStore } from '@/store/useTaskStore';
+import { useEventStore } from '@/store/useEventStore';
 import { 
   format, parseISO, startOfMonth, endOfMonth, startOfWeek, endOfWeek, 
   eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths, isToday 
@@ -9,7 +10,7 @@ import {
 import { ru } from 'date-fns/locale';
 import { 
   ChevronLeft, ChevronRight, Target, CheckCircle2, 
-  Calendar as CalendarIcon, Clock, Check, ListFilter, Search, X
+  Calendar as CalendarIcon, Clock, Check, ListFilter, Search, X, MapPin
 } from 'lucide-react';
 import { cn } from '@/utils/cn';
 import type { Goal } from '@/types/goal';
@@ -22,6 +23,7 @@ interface GoalsCalendarProps {
 export function GoalsCalendar({ onSelectGoal }: GoalsCalendarProps) {
   const { goals } = useGoalStore();
   const { tasks } = useTaskStore();
+  const { events } = useEventStore();
   const [currentMonth, setCurrentMonth] = React.useState<Date>(new Date());
   const [selectedDate, setSelectedDate] = React.useState<Date>(new Date());
   const [filterType, setFilterType] = React.useState<'all' | 'deadlines' | 'completed'>('all');
@@ -95,15 +97,19 @@ export function GoalsCalendar({ onSelectGoal }: GoalsCalendarProps) {
       matchesGoal(g)
     );
 
-    // 3. Задачи, назначенные на этот день
+    // 3. Запланированные события на этот день
+    const dayEvents = events.filter(e => e.eventDate === selectedDateStr);
+
+    // 4. Задачи, назначенные на этот день
     const dayTasks = tasks.filter(t => t.dueDate === selectedDateStr && matchesTask(t));
 
     return {
       deadlineGoals,
       completedGoals,
+      dayEvents,
       dayTasks,
     };
-  }, [goals, tasks, selectedDateStr, matchesGoal, matchesTask]);
+  }, [goals, tasks, events, selectedDateStr, matchesGoal, matchesTask]);
 
   // Результаты поиска по всем датам для быстрых переходов
   const searchResults = React.useMemo(() => {
@@ -316,14 +322,18 @@ export function GoalsCalendar({ onSelectGoal }: GoalsCalendarProps) {
             );
             // Задачи в этот день
             const dayTasksCount = tasks.filter(t => t.dueDate === dayIso && matchesTask(t)).length;
+            // События в этот день
+            const dayEvents = events.filter(e => e.eventDate === dayIso);
+            const dayEventsCount = dayEvents.length;
 
-            const isSearchMatch = Boolean(normalizedQuery && (dayDeadlines.length > 0 || dayCompleted.length > 0 || dayTasksCount > 0));
+            const isSearchMatch = Boolean(normalizedQuery && (dayDeadlines.length > 0 || dayCompleted.length > 0 || dayTasksCount > 0 || dayEventsCount > 0));
 
             const showDeadlines = filterType === 'all' || filterType === 'deadlines';
             const showCompleted = filterType === 'all' || filterType === 'completed';
 
             const hasItems = (showDeadlines && dayDeadlines.length > 0) || 
                              (showCompleted && dayCompleted.length > 0) || 
+                             dayEventsCount > 0 ||
                              dayTasksCount > 0;
 
             return (
@@ -341,7 +351,7 @@ export function GoalsCalendar({ onSelectGoal }: GoalsCalendarProps) {
                   isCurrentDay && !isSelected && "bg-blue-50/30 dark:bg-blue-950/20"
                 )}
               >
-                {/* Номер дня */}
+                {/* Номер дня + индикаторы-кружочки */}
                 <div className="flex items-center justify-between mb-0.5 sm:mb-1">
                   <span
                     className={cn(
@@ -356,15 +366,31 @@ export function GoalsCalendar({ onSelectGoal }: GoalsCalendarProps) {
                     {format(day, 'd')}
                   </span>
 
-                  {dayTasksCount > 0 && (
-                    <span className="hidden sm:inline text-[10px] font-medium text-slate-400 dark:text-slate-500" title={`${dayTasksCount} задач`}>
-                      {dayTasksCount} зад.
-                    </span>
-                  )}
+                  {/* Кружочки событий и задач на десктопе */}
+                  <div className="hidden sm:flex items-center gap-1">
+                    {dayEventsCount > 0 && (
+                      <span className="h-2 w-2 rounded-full bg-amber-500 ring-1 ring-amber-300 shadow-sm" title={`${dayEventsCount} событий / встреч`} />
+                    )}
+                    {dayTasksCount > 0 && (
+                      <span className="h-2 w-2 rounded-full bg-purple-500 ring-1 ring-purple-300 shadow-sm" title={`${dayTasksCount} задач`} />
+                    )}
+                  </div>
                 </div>
 
                 {/* Значки событий для планшетов и ПК (sm:block) */}
                 <div className="hidden sm:block space-y-1 overflow-hidden">
+                  {/* События и встречи (Оранжевые) */}
+                  {dayEvents.slice(0, 2).map((e) => (
+                    <div
+                      key={e.id}
+                      className="text-[10px] font-semibold px-1.5 py-0.5 rounded truncate bg-amber-100 text-amber-900 dark:bg-amber-950/70 dark:text-amber-200 border border-amber-300/70 dark:border-amber-800 flex items-center gap-1"
+                      title={`Событие: ${e.title} ${e.eventTime ? '(' + e.eventTime + ')' : ''}`}
+                    >
+                      <span className="text-[9px]">📅</span>
+                      <span className="truncate">{e.title}</span>
+                    </div>
+                  ))}
+
                   {/* Сроки целей */}
                   {showDeadlines && dayDeadlines.slice(0, 2).map((g) => (
                     <div
@@ -390,24 +416,27 @@ export function GoalsCalendar({ onSelectGoal }: GoalsCalendarProps) {
                   ))}
 
                   {/* Если больше 2 элементов */}
-                  {((showDeadlines ? dayDeadlines.length : 0) + (showCompleted ? dayCompleted.length : 0)) > 2 && (
+                  {(dayEventsCount + (showDeadlines ? dayDeadlines.length : 0) + (showCompleted ? dayCompleted.length : 0)) > 2 && (
                     <div className="text-[9px] text-slate-400 dark:text-slate-500 font-medium pl-1">
-                      +ещё {((showDeadlines ? dayDeadlines.length : 0) + (showCompleted ? dayCompleted.length : 0)) - 2}
+                      +ещё {(dayEventsCount + (showDeadlines ? dayDeadlines.length : 0) + (showCompleted ? dayCompleted.length : 0)) - 2}
                     </div>
                   )}
                 </div>
 
                 {/* Цветные точки событий для смартфонов (sm:hidden) */}
                 <div className="sm:hidden flex flex-wrap justify-center items-center gap-1 py-0.5">
-                  {showDeadlines && dayDeadlines.slice(0, 2).map((g) => (
+                  {dayEventsCount > 0 && (
+                    <span className="h-2 w-2 rounded-full bg-amber-500 ring-1 ring-amber-300 shadow-sm" title={`${dayEventsCount} событий`} />
+                  )}
+                  {dayTasksCount > 0 && (
+                    <span className="h-2 w-2 rounded-full bg-purple-500 ring-1 ring-purple-300 shadow-sm" title={`${dayTasksCount} задач`} />
+                  )}
+                  {showDeadlines && dayDeadlines.slice(0, 1).map((g) => (
                     <span key={g.id} className="h-1.5 w-1.5 rounded-full bg-indigo-500" title={`Срок: ${g.title}`} />
                   ))}
-                  {showCompleted && dayCompleted.slice(0, 2).map((g) => (
+                  {showCompleted && dayCompleted.slice(0, 1).map((g) => (
                     <span key={g.id} className="h-1.5 w-1.5 rounded-full bg-emerald-500" title={`Выполнена: ${g.title}`} />
                   ))}
-                  {dayTasksCount > 0 && (
-                    <span className="h-1.5 w-1.5 rounded-full bg-blue-400" title={`${dayTasksCount} задач`} />
-                  )}
                 </div>
 
                 {/* Маркер наличия задач */}
@@ -419,6 +448,28 @@ export function GoalsCalendar({ onSelectGoal }: GoalsCalendarProps) {
               </div>
             );
           })}
+        </div>
+
+        {/* Легенда кружочков/меток календаря */}
+        <div className="flex flex-wrap items-center justify-between gap-3 px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800/80 border-t border-slate-200 dark:border-slate-700 text-[11px] text-slate-600 dark:text-slate-300">
+          <div className="flex flex-wrap items-center gap-3 sm:gap-5">
+            <div className="flex items-center gap-1.5">
+              <span className="h-2.5 w-2.5 rounded-full bg-amber-500 ring-1 ring-amber-300" />
+              <span>Оранжевый: События и встречи</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="h-2.5 w-2.5 rounded-full bg-purple-500 ring-1 ring-purple-300" />
+              <span>Фиолетовый: Задачи</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="h-2.5 w-2.5 rounded-full bg-indigo-500" />
+              <span>Синий: Сроки целей</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
+              <span>Зеленый: Достигнутые цели</span>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -440,9 +491,10 @@ export function GoalsCalendar({ onSelectGoal }: GoalsCalendarProps) {
 
         {selectedDayItems.deadlineGoals.length === 0 && 
          selectedDayItems.completedGoals.length === 0 && 
+         selectedDayItems.dayEvents.length === 0 &&
          selectedDayItems.dayTasks.length === 0 ? (
           <div className="text-center py-6 text-slate-400 dark:text-slate-500 text-sm">
-            <p>На этот день нет запланированных сроков выполнения и задач.</p>
+            <p>На этот день нет запланированных событий, сроков выполнения и задач.</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -504,6 +556,39 @@ export function GoalsCalendar({ onSelectGoal }: GoalsCalendarProps) {
                       <p className="text-[11px] text-emerald-700/80 dark:text-emerald-400/80 mt-1 pl-7">
                         Успешно достигнута! 🏆
                       </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* 2.5 События дня */}
+            {selectedDayItems.dayEvents.length > 0 && (
+              <div className="space-y-2 md:col-span-2">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+                  <MapPin className="h-3.5 w-3.5 text-amber-500" />
+                  События и встречи ({selectedDayItems.dayEvents.length})
+                </h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {selectedDayItems.dayEvents.map((e) => (
+                    <div
+                      key={e.id}
+                      className={cn(
+                        "p-3 rounded-xl border text-sm flex items-center justify-between gap-2.5",
+                        e.isCompleted
+                          ? "bg-slate-50 border-slate-200 text-slate-400 line-through dark:bg-slate-800/40 dark:border-slate-700 dark:text-slate-500"
+                          : "bg-amber-50/60 border-amber-200 text-slate-800 dark:bg-amber-950/20 dark:border-amber-800/50 dark:text-slate-200"
+                      )}
+                    >
+                      <div className="flex items-center gap-2 truncate">
+                        <span className="text-base">📅</span>
+                        <span className="font-semibold truncate">{e.title}</span>
+                      </div>
+                      {e.eventTime && (
+                        <span className="text-xs font-bold text-amber-600 dark:text-amber-400 shrink-0">
+                          {e.eventTime}
+                        </span>
+                      )}
                     </div>
                   ))}
                 </div>

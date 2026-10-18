@@ -2,33 +2,59 @@ import * as React from 'react';
 import { Link } from 'react-router-dom';
 import { useTaskStore } from '@/store/useTaskStore';
 import { useGoalStore } from '@/store/useGoalStore';
+import { useEventStore } from '@/store/useEventStore';
 import { DailyFocus } from '@/components/today/DailyFocus';
 import { TaskItem } from '@/components/today/TaskItem';
 import { QuickTaskInput } from '@/components/today/QuickTaskInput';
 import { ProgressBar } from '@/components/common/ProgressBar';
 import { TaskEditModal } from '@/components/goals/TaskEditModal';
+import { EventsFullView } from '@/components/events/EventsFullView';
 import { toISODateString, formatDate } from '@/utils/date';
 import { getGamificationStats } from '@/utils/gamification';
-import { CalendarDays, CheckCircle2, Target, Sun, Moon } from 'lucide-react';
+import { CalendarDays, CheckCircle2, Target, Sun, Moon, Timer, Calendar, ChevronRight, MapPin } from 'lucide-react';
 import { MorningRitualModal } from '@/components/today/MorningRitualModal';
 import { EveningReflectionModal } from '@/components/today/EveningReflectionModal';
+import { FocusTimerModal } from '@/components/today/FocusTimerModal';
 import { cn } from '@/utils/cn';
 import confetti from 'canvas-confetti';
+import { playLevelUpSound, triggerHaptic } from '@/utils/soundEffects';
 import type { Task } from '@/types/task';
+import type { AppEvent } from '@/types/event';
 
 export function TodayPage() {
   const today = toISODateString(new Date());
   
   const { tasks, fetchTasks } = useTaskStore();
   const { goals, fetchGoals, updateGoal } = useGoalStore();
+  const { events, toggleComplete: toggleEventComplete } = useEventStore();
+  const [viewMode, setViewMode] = React.useState<'tasks' | 'events'>('tasks');
   const [editingTask, setEditingTask] = React.useState<Task | null>(null);
   const [floatingGoalXP, setFloatingGoalXP] = React.useState<string | null>(null);
   const [isMorningRitualOpen, setIsMorningRitualOpen] = React.useState(false);
   const [isEveningRitualOpen, setIsEveningRitualOpen] = React.useState(false);
+  const [isFocusModalOpen, setIsFocusModalOpen] = React.useState(false);
+  const [focusTask, setFocusTask] = React.useState<Task | null>(null);
 
   React.useEffect(() => {
     Promise.all([fetchTasks(), fetchGoals()]);
   }, [fetchTasks, fetchGoals]);
+
+  // Слушатель завершения сессии глубокого фокуса для обновления уровня и опыта
+  React.useEffect(() => {
+    const onFocusCompleted = () => {
+      fetchTasks();
+      fetchGoals();
+    };
+    window.addEventListener('focus-session-completed', onFocusCompleted);
+    return () => window.removeEventListener('focus-session-completed', onFocusCompleted);
+  }, [fetchTasks, fetchGoals]);
+
+  // Сброс на режим "Задачи дня" при запуске тура онбординга
+  React.useEffect(() => {
+    const handleStartOnboarding = () => setViewMode('tasks');
+    window.addEventListener('start-onboarding', handleStartOnboarding);
+    return () => window.removeEventListener('start-onboarding', handleStartOnboarding);
+  }, []);
 
   // Автоматический запуск ритуала дня по времени суток (1 раз в день)
   React.useEffect(() => {
@@ -53,7 +79,7 @@ export function TodayPage() {
   }, [today]);
 
   // Статистика геймификации и уровень игрока (как на странице "Обзор")
-  const gamificationStats = React.useMemo(() => getGamificationStats(goals, tasks), [goals, tasks]);
+  const gamificationStats = React.useMemo(() => getGamificationStats(goals, tasks, events), [goals, tasks, events]);
 
   // Только корневые цели, отмеченные как "Цель дня" (Фокус дня)
   const todaysGoals = goals.filter((g) => g.isTodayGoal === true && !g.parentId);
@@ -77,6 +103,31 @@ export function TodayPage() {
   const todaysTasks = tasks.filter(
     (t) => t.dueDate === today || (t.goalId && todayGoalHierarchyIds.has(t.goalId))
   );
+
+  // Активные события на сегодня для компактной плашки в Задачи дня
+  const todaysActiveEvents = React.useMemo(() => {
+    return events.filter((e) => e.eventDate === today && !e.isCompleted);
+  }, [events, today]);
+
+  // Завершение сегодняшнего события прямо из компактной полоски
+  const handleCompleteTodayEvent = async (event: AppEvent) => {
+    playLevelUpSound();
+    triggerHaptic('success');
+    confetti({
+      particleCount: 90,
+      spread: 70,
+      origin: { y: 0.6 },
+      colors: ['#f59e0b', '#6366f1', '#10b981', '#ec4899'],
+    });
+    window.dispatchEvent(
+      new CustomEvent('show-toast', { detail: { message: `Событие «${event.title}» посещено! +20 XP 🌟` } })
+    );
+    try {
+      await toggleEventComplete(event.id);
+    } catch (err) {
+      console.error('Failed to complete event:', err);
+    }
+  };
 
   // Отметить цель выполненной целиком — только при 100% прогрессе
   const handleToggleGoal = async (goal: (typeof goals)[0]) => {
@@ -196,23 +247,37 @@ export function TodayPage() {
           </Link>
         </div>
 
-        {/* Панель ритуалов дня (Утренний фокус и Вечерняя рефлексия) */}
-        <div className="flex items-center gap-2.5 sm:gap-3">
+        {/* Панель продуктивности: Утренний фокус, Помодоро-таймер и Вечерняя рефлексия */}
+        <div className="flex items-center gap-2 sm:gap-2.5">
           <button
             type="button"
             onClick={() => setIsMorningRitualOpen(true)}
-            className="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-2xl bg-gradient-to-r from-amber-500/10 to-orange-500/10 hover:from-amber-500/20 hover:to-orange-500/20 border border-amber-300/70 dark:border-amber-800/70 text-amber-900 dark:text-amber-200 font-bold text-xs sm:text-sm shadow-sm transition-all hover:scale-[1.01] active:scale-[0.98]"
+            className="flex-1 flex items-center justify-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-2.5 rounded-2xl bg-gradient-to-r from-amber-500/10 to-orange-500/10 hover:from-amber-500/20 hover:to-orange-500/20 border border-amber-300/70 dark:border-amber-800/70 text-amber-900 dark:text-amber-200 font-bold text-xs sm:text-sm shadow-sm transition-all hover:scale-[1.01] active:scale-[0.98]"
+            title="Утренний ритуал дня: Eat That Frog"
           >
             <Sun className="h-4 w-4 text-amber-500 shrink-0" />
-            <span className="truncate">🌅 Утренний фокус</span>
+            <span className="truncate">🌅 Утро</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setFocusTask(null);
+              setIsFocusModalOpen(true);
+            }}
+            className="flex-1 flex items-center justify-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-2.5 rounded-2xl bg-gradient-to-r from-teal-500/10 to-indigo-500/10 hover:from-teal-500/20 hover:to-indigo-500/20 border border-teal-300/70 dark:border-indigo-800/70 text-teal-900 dark:text-teal-200 font-bold text-xs sm:text-sm shadow-sm transition-all hover:scale-[1.01] active:scale-[0.98]"
+            title="Запустить режим глубокого фокуса (Помодоро 25 мин)"
+          >
+            <Timer className="h-4 w-4 text-teal-600 dark:text-teal-400 shrink-0" />
+            <span className="truncate">⏱ Фокус</span>
           </button>
           <button
             type="button"
             onClick={() => setIsEveningRitualOpen(true)}
-            className="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-2xl bg-gradient-to-r from-indigo-500/10 to-purple-500/10 hover:from-indigo-500/20 hover:to-purple-500/20 border border-indigo-300/70 dark:border-indigo-800/70 text-indigo-900 dark:text-indigo-200 font-bold text-xs sm:text-sm shadow-sm transition-all hover:scale-[1.01] active:scale-[0.98]"
+            className="flex-1 flex items-center justify-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-2.5 rounded-2xl bg-gradient-to-r from-indigo-500/10 to-purple-500/10 hover:from-indigo-500/20 hover:to-purple-500/20 border border-indigo-300/70 dark:border-indigo-800/70 text-indigo-900 dark:text-indigo-200 font-bold text-xs sm:text-sm shadow-sm transition-all hover:scale-[1.01] active:scale-[0.98]"
+            title="Вечерняя рефлексия и итоги дня"
           >
             <Moon className="h-4 w-4 text-indigo-500 shrink-0" />
-            <span className="truncate">🌙 Итоги дня</span>
+            <span className="truncate">🌙 Вечер</span>
           </button>
         </div>
 
@@ -237,9 +302,51 @@ export function TodayPage() {
         </div>
       </header>
 
-      {/* 1. ГЛАВНЫЕ ФОКУСЫ ДНЯ */}
-      <div data-tour="today-focus">
-        <DailyFocus />
+      {/* Переключатель разделов: Задачи дня vs События и встречи (как Список / Календарь) */}
+      <div 
+        data-tour="today-events-toggle"
+        className="flex items-center bg-slate-100 dark:bg-slate-800 p-1 rounded-2xl border border-slate-200 dark:border-slate-700 mb-6 sm:mb-8"
+      >
+        <button
+          type="button"
+          onClick={() => setViewMode('tasks')}
+          className={cn(
+            "flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-xl text-xs sm:text-sm font-bold transition-all text-center",
+            viewMode === 'tasks'
+              ? "bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-300 shadow-sm"
+              : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+          )}
+        >
+          <CheckCircle2 className="h-4 w-4" />
+          <span>Задачи дня</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setViewMode('events')}
+          className={cn(
+            "flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-xl text-xs sm:text-sm font-bold transition-all text-center",
+            viewMode === 'events'
+              ? "bg-white dark:bg-slate-700 text-amber-600 dark:text-amber-400 shadow-sm"
+              : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+          )}
+        >
+          <Calendar className="h-4 w-4 text-amber-500" />
+          <span>События и встречи</span>
+          {events.filter((e) => !e.isCompleted).length > 0 && (
+            <span className="text-[10px] font-black px-1.5 py-0.2 rounded-full bg-amber-500 text-white">
+              {events.filter((e) => !e.isCompleted).length}
+            </span>
+          )}
+        </button>
+      </div>
+
+      {viewMode === 'events' ? (
+        <EventsFullView />
+      ) : (
+        <>
+          {/* 1. ГЛАВНЫЕ ФОКУСЫ ДНЯ */}
+          <div data-tour="today-focus">
+        <DailyFocus onStartFocus={(task) => { setFocusTask(task); setIsFocusModalOpen(true); }} />
       </div>
 
       {/* 2. ЦЕЛИ НА СЕГОДНЯ (ФОКУС ДНЯ) */}
@@ -345,6 +452,52 @@ export function TodayPage() {
           </span>
         </div>
 
+        {/* Компактная аккуратная полоска событий на сегодня (Идеальный компромисс) */}
+        {todaysActiveEvents.length > 0 && (
+          <div className="mb-4 space-y-2">
+            {todaysActiveEvents.map((evt) => (
+              <div
+                key={evt.id}
+                className="flex items-center justify-between gap-3 px-3.5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500/10 via-orange-500/10 to-amber-500/5 border border-amber-300/80 dark:border-amber-700/70 shadow-sm"
+              >
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-amber-500/20 text-amber-600 dark:text-amber-400">
+                    <MapPin className="h-4 w-4" />
+                  </span>
+                  <div className="truncate">
+                    <span className="text-xs font-semibold text-amber-700 dark:text-amber-300 mr-2">
+                      📍 {evt.eventTime ? `Сегодня в ${evt.eventTime}` : 'Сегодня'}:
+                    </span>
+                    <span className="text-sm font-bold text-slate-800 dark:text-slate-100">
+                      {evt.title}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => handleCompleteTodayEvent(evt)}
+                    className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs shadow-sm transition-transform active:scale-95"
+                    title="Отметить посещение события (+20 XP)"
+                  >
+                    <CheckCircle2 className="h-3.5 w-3.5" />
+                    <span>Я на месте!</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setViewMode('events')}
+                    className="p-1.5 rounded-lg text-amber-700 hover:bg-amber-100 dark:text-amber-400 dark:hover:bg-amber-900/40 transition-colors"
+                    title="Открыть все события"
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
         <QuickTaskInput />
 
         {todaysTasks.length === 0 ? (
@@ -359,12 +512,18 @@ export function TodayPage() {
                   task={task} 
                   onToggleFocus={useTaskStore.getState().toggleDailyFocus} 
                   onEdit={(t) => setEditingTask(t)}
+                  onStartFocus={(t) => {
+                    setFocusTask(t);
+                    setIsFocusModalOpen(true);
+                  }}
                 />
               </li>
             ))}
           </ul>
         )}
       </section>
+        </>
+      )}
 
       {/* Модальное окно редактирования задачи */}
       <TaskEditModal 
@@ -381,6 +540,13 @@ export function TodayPage() {
       <EveningReflectionModal
         isOpen={isEveningRitualOpen}
         onClose={() => setIsEveningRitualOpen(false)}
+      />
+
+      {/* Модальное окно режима глубокого фокуса (Помодоро 25 мин) */}
+      <FocusTimerModal
+        isOpen={isFocusModalOpen}
+        onClose={() => setIsFocusModalOpen(false)}
+        initialTask={focusTask}
       />
     </div>
   );

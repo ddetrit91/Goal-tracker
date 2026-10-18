@@ -31,6 +31,28 @@ export async function ensureDbInitialized() {
   try {
     console.log('🔧 Checking database schema & admin account...');
 
+    // Создание таблицы событий, если еще нет
+    try {
+      await client.execute(`
+        CREATE TABLE IF NOT EXISTS events (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          title TEXT NOT NULL,
+          description TEXT,
+          event_date TEXT NOT NULL,
+          event_time TEXT,
+          remind_days_before INTEGER DEFAULT 2,
+          is_completed INTEGER DEFAULT 0,
+          completed_at TEXT,
+          category TEXT DEFAULT 'personal',
+          created_at TEXT DEFAULT (CURRENT_TIMESTAMP)
+        )
+      `);
+      console.log('✅ Events table verified/created');
+    } catch (e: any) {
+      console.warn('⚠️ Events table check warning:', e?.message);
+    }
+
     const columnsToAdd = [
       { name: 'start_date', sql: 'ALTER TABLE goals ADD COLUMN start_date TEXT' },
       { name: 'status', sql: "ALTER TABLE goals ADD COLUMN status TEXT DEFAULT 'backlog'" },
@@ -41,6 +63,7 @@ export async function ensureDbInitialized() {
       { name: 'last_city', sql: 'ALTER TABLE users ADD COLUMN last_city TEXT' },
       { name: 'ip_address', sql: 'ALTER TABLE activity_logs ADD COLUMN ip_address TEXT' },
       { name: 'city', sql: 'ALTER TABLE activity_logs ADD COLUMN city TEXT' },
+      { name: 'completed_at', sql: 'ALTER TABLE events ADD COLUMN completed_at TEXT' },
     ];
 
     for (const col of columnsToAdd) {

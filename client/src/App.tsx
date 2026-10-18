@@ -17,8 +17,10 @@ import { ProgressReminderBanner } from '@/components/common/ProgressReminderBann
 import { useGoalStore } from '@/store/useGoalStore';
 import { useTaskStore } from '@/store/useTaskStore';
 import { useCategoryStore } from '@/store/useCategoryStore';
+import { useEventStore } from '@/store/useEventStore';
 import { GOAL_GUIDES } from '@/data/guidesData';
 import { getGamificationStats } from '@/utils/gamification';
+import { checkAndNotifyUpcomingEvents } from '@/utils/eventNotifications';
 
 // Компонент-защитник маршрутов
 function ProtectedRoute() {
@@ -36,8 +38,10 @@ function AppContent() {
   const fetchGoals = useGoalStore((state) => state.fetchGoals);
   const fetchTasks = useTaskStore((state) => state.fetchTasks);
   const fetchCategories = useCategoryStore((state) => state.fetchCategories);
+  const fetchEvents = useEventStore((state) => state.fetchEvents);
   const goals = useGoalStore((state) => state.goals);
   const tasks = useTaskStore((state) => state.tasks);
+  const events = useEventStore((state) => state.events);
   
   const [toastMessage, setToastMessage] = React.useState<string | null>(null);
 
@@ -48,6 +52,7 @@ function AppContent() {
       fetchGoals();
       fetchTasks();
       fetchCategories();
+      fetchEvents();
     }
 
     const handleShowToast = (e: Event) => {
@@ -57,7 +62,14 @@ function AppContent() {
 
     window.addEventListener('show-toast', handleShowToast);
     return () => window.removeEventListener('show-toast', handleShowToast);
-  }, [fetchGoals, fetchTasks, fetchCategories, isAuthPage]);
+  }, [fetchGoals, fetchTasks, fetchCategories, fetchEvents, isAuthPage]);
+
+  // Проверка и отправка системных уведомлений о предстоящих событиях (за 2 дня и сегодня)
+  React.useEffect(() => {
+    if (events && events.length > 0) {
+      checkAndNotifyUpcomingEvents(events);
+    }
+  }, [events]);
 
   // Отслеживание разблокировки новых гайдов для всплывающего уведомления на любой странице
   React.useEffect(() => {
