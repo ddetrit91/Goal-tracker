@@ -6,11 +6,12 @@ import { ProgressBar } from '@/components/common/ProgressBar';
 import { CategoryBadge } from '@/components/common/CategoryBadge';
 import { TaskItem } from '@/components/today/TaskItem';
 import { TaskEditModal } from '@/components/goals/TaskEditModal';
-import { ChevronDown, ChevronRight, Plus, Pencil, Trash2, Star, Calendar, Copy } from 'lucide-react';
+import { ChevronDown, ChevronRight, Plus, Pencil, Trash2, Star, Calendar, Copy, CheckCircle2 } from 'lucide-react';
 import { cn } from '@/utils/cn';
 import { parseISO, differenceInDays, format } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { toISODateString } from '@/utils/date';
+import { triggerHaptic } from '@/utils/soundEffects';
 import type { Goal } from '@/types/goal';
 import type { Task } from '@/types/task';
 
@@ -31,6 +32,9 @@ export function GoalCard({ goal, level = 0, onAddSubgoal, onEditGoal, onDeleteGo
   const [isTaskForToday, setIsTaskForToday] = React.useState(false);
   const [isSubmittingTask, setIsSubmittingTask] = React.useState(false);
   const [editingTask, setEditingTask] = React.useState<Task | null>(null);
+  const [showCompletedTasks, setShowCompletedTasks] = React.useState(true);
+  const [draggedTaskId, setDraggedTaskId] = React.useState<string | null>(null);
+  const [dragOverTaskId, setDragOverTaskId] = React.useState<string | null>(null);
 
   const { goals, getChildren, toggleTodayGoal, duplicateGoal } = useGoalStore();
   const { tasks: allStoreTasks, createTask, toggleDailyFocus } = useTaskStore();
@@ -74,6 +78,64 @@ export function GoalCard({ goal, level = 0, onAddSubgoal, onEditGoal, onDeleteGo
   
   // Используем переданные задачи (если есть) или фильтруем из стора
   const relevantTasks = tasks || allStoreTasks.filter((t) => t.goalId === goal.id);
+
+  // Разделяем задачи на активные (сверху) и выполненные (падают вниз по времени завершения)
+  const { activeTasks, completedTasks } = React.useMemo(() => {
+    const active = relevantTasks.filter((t) => !t.isCompleted);
+    const completed = relevantTasks.filter((t) => t.isCompleted);
+
+    // Сортировка выполненных задач по очерёдности завершения (от свежих к более ранним)
+    completed.sort((a, b) => {
+      const timeA = a.completedAt || a.createdAt || '';
+      const timeB = b.completedAt || b.createdAt || '';
+      return timeB.localeCompare(timeA);
+    });
+
+    return { activeTasks: active, completedTasks: completed };
+  }, [relevantTasks]);
+
+  // Drag & drop обработчики для перемещения активных задач
+  const handleDragStart = (e: React.DragEvent, task: Task) => {
+    setDraggedTaskId(task.id);
+    e.dataTransfer.setData('text/plain', task.id);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleDragOver = (e: React.DragEvent, task: Task) => {
+    e.preventDefault();
+    if (draggedTaskId && draggedTaskId !== task.id) {
+      setDragOverTaskId(task.id);
+      e.dataTransfer.dropEffect = 'move';
+    }
+  };
+
+  const handleDragLeave = (_e: React.DragEvent, task: Task) => {
+    if (dragOverTaskId === task.id) {
+      setDragOverTaskId(null);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent, targetTask: Task) => {
+    e.preventDefault();
+    setDragOverTaskId(null);
+    if (!draggedTaskId || draggedTaskId === targetTask.id) return;
+
+    const currentList = [...activeTasks];
+    const dragIndex = currentList.findIndex((t) => t.id === draggedTaskId);
+    const dropIndex = currentList.findIndex((t) => t.id === targetTask.id);
+
+    if (dragIndex !== -1 && dropIndex !== -1) {
+      const removed = currentList[dragIndex];
+      if (removed) {
+        currentList.splice(dragIndex, 1);
+        currentList.splice(dropIndex, 0, removed);
+        
+        triggerHaptic('light');
+        useTaskStore.getState().reorderTasks(currentList);
+      }
+    }
+    setDraggedTaskId(null);
+  };
   
   const childGoals = getChildren(goal.id);
   const hasChildren = childGoals.length > 0 || relevantTasks.length > 0 || isAddingTask;
@@ -317,16 +379,53 @@ export function GoalCard({ goal, level = 0, onAddSubgoal, onEditGoal, onDeleteGo
               />
             ))}
             
-            {/* ОТОБРАЖЕНИЕ ЗАДАЧ С ЧЕКБОКСАМИ, КНОПКАМИ РЕДАКТИРОВАНИЯ И ДУБЛИРОВАНИЯ */}
-            {relevantTasks.map((task) => (
+            {/* АКТИВНЫЕ ЗАДАЧИ (СВЕРХУ) С ВОЗМОЖНОСТЬЮ ПЕРЕТАСКИВАНИЯ (DRAG & DROP) */}
+            {activeTasks.map((task) => (
               <div key={task.id} className="pl-2">
                 <TaskItem 
                   task={task} 
                   onToggleFocus={toggleDailyFocus} 
                   onEdit={(t) => setEditingTask(t)}
+                  isDraggable={true}
+                  onDragStart={handleDragStart}
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                  onDrop={handleDrop}
+                  isDragging={draggedTaskId === task.id}
+                  isDragOver={dragOverTaskId === task.id}
                 /> 
               </div>
             ))}
+
+            {/* ВЫПОЛНЕННЫЕ ЗАДАЧИ: ПАДАЮТ ВНИЗ ПО ОЧЕРЁДНОСТИ ВЫПОЛНЕНИЯ */}
+            {completedTasks.length > 0 && (
+              <div className="pt-2 mt-3 border-t border-slate-100 dark:border-slate-700/60 space-y-2">
+                <div className="flex items-center justify-between text-xs text-slate-400 dark:text-slate-500 font-semibold px-2 mb-1">
+                  <div className="flex items-center gap-1.5">
+                    <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+                    <span>Выполненные ({completedTasks.length})</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowCompletedTasks(!showCompletedTasks)}
+                    className="text-[11px] text-indigo-500 hover:text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1"
+                  >
+                    <span>{showCompletedTasks ? 'Свернуть' : 'Развернуть'}</span>
+                    <ChevronDown className={cn("h-3 w-3 transition-transform", !showCompletedTasks && "-rotate-90")} />
+                  </button>
+                </div>
+
+                {showCompletedTasks && completedTasks.map((task) => (
+                  <div key={task.id} className="pl-2">
+                    <TaskItem 
+                      task={task} 
+                      onToggleFocus={toggleDailyFocus} 
+                      onEdit={(t) => setEditingTask(t)}
+                    /> 
+                  </div>
+                ))}
+              </div>
+            )}
 
             {childGoals.length === 0 && relevantTasks.length === 0 && !isAddingTask && (
               <p className="text-sm text-slate-400 italic text-center py-2 dark:text-slate-500">Пока нет дочерних элементов.</p>

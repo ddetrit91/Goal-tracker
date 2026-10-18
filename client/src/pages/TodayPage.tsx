@@ -11,7 +11,7 @@ import { TaskEditModal } from '@/components/goals/TaskEditModal';
 import { EventsFullView } from '@/components/events/EventsFullView';
 import { toISODateString, formatDate } from '@/utils/date';
 import { getGamificationStats } from '@/utils/gamification';
-import { CalendarDays, CheckCircle2, Target, Sun, Moon, Timer, Calendar, ChevronRight, MapPin } from 'lucide-react';
+import { CalendarDays, CheckCircle2, Target, Sun, Moon, Timer, Calendar, ChevronRight, ChevronDown, MapPin } from 'lucide-react';
 import { MorningRitualModal } from '@/components/today/MorningRitualModal';
 import { EveningReflectionModal } from '@/components/today/EveningReflectionModal';
 import { FocusTimerModal } from '@/components/today/FocusTimerModal';
@@ -34,6 +34,9 @@ export function TodayPage() {
   const [isEveningRitualOpen, setIsEveningRitualOpen] = React.useState(false);
   const [isFocusModalOpen, setIsFocusModalOpen] = React.useState(false);
   const [focusTask, setFocusTask] = React.useState<Task | null>(null);
+  const [showCompletedTodayTasks, setShowCompletedTodayTasks] = React.useState(true);
+  const [draggedTaskId, setDraggedTaskId] = React.useState<string | null>(null);
+  const [dragOverTaskId, setDragOverTaskId] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     Promise.all([fetchTasks(), fetchGoals()]);
@@ -49,11 +52,20 @@ export function TodayPage() {
     return () => window.removeEventListener('focus-session-completed', onFocusCompleted);
   }, [fetchTasks, fetchGoals]);
 
-  // Сброс на режим "Задачи дня" при запуске тура онбординга
+  // Сброс на режим "Задачи дня" при запуске тура онбординга или переходе по шагам
   React.useEffect(() => {
-    const handleStartOnboarding = () => setViewMode('tasks');
-    window.addEventListener('start-onboarding', handleStartOnboarding);
-    return () => window.removeEventListener('start-onboarding', handleStartOnboarding);
+    const handleResetView = (e?: Event) => {
+      const customEvent = e as CustomEvent<{ stepId: string }>;
+      if (!customEvent?.detail?.stepId || ['rituals', 'today', 'events', 'welcome'].includes(customEvent.detail.stepId)) {
+        setViewMode('tasks');
+      }
+    };
+    window.addEventListener('start-onboarding', handleResetView);
+    window.addEventListener('tour-step-change', handleResetView);
+    return () => {
+      window.removeEventListener('start-onboarding', handleResetView);
+      window.removeEventListener('tour-step-change', handleResetView);
+    };
   }, []);
 
   // Автоматический запуск ритуала дня по времени суток (1 раз в день)
@@ -103,6 +115,64 @@ export function TodayPage() {
   const todaysTasks = tasks.filter(
     (t) => t.dueDate === today || (t.goalId && todayGoalHierarchyIds.has(t.goalId))
   );
+
+  // Разделение задач дня: активные (сверху) и выполненные (падают вниз по времени завершения)
+  const { activeTodayTasks, completedTodayTasks } = React.useMemo(() => {
+    const active = todaysTasks.filter((t) => !t.isCompleted);
+    const completed = todaysTasks.filter((t) => t.isCompleted);
+
+    // Сортировка выполненных задач по очерёдности завершения: свежие сверху
+    completed.sort((a, b) => {
+      const timeA = a.completedAt || a.createdAt || '';
+      const timeB = b.completedAt || b.createdAt || '';
+      return timeB.localeCompare(timeA);
+    });
+
+    return { activeTodayTasks: active, completedTodayTasks: completed };
+  }, [todaysTasks]);
+
+  // Drag & drop перемещение для активных задач дня
+  const handleDragStart = (e: React.DragEvent, task: Task) => {
+    setDraggedTaskId(task.id);
+    e.dataTransfer.setData('text/plain', task.id);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleDragOver = (e: React.DragEvent, task: Task) => {
+    e.preventDefault();
+    if (draggedTaskId && draggedTaskId !== task.id) {
+      setDragOverTaskId(task.id);
+      e.dataTransfer.dropEffect = 'move';
+    }
+  };
+
+  const handleDragLeave = (_e: React.DragEvent, task: Task) => {
+    if (dragOverTaskId === task.id) {
+      setDragOverTaskId(null);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent, targetTask: Task) => {
+    e.preventDefault();
+    setDragOverTaskId(null);
+    if (!draggedTaskId || draggedTaskId === targetTask.id) return;
+
+    const currentList = [...activeTodayTasks];
+    const dragIndex = currentList.findIndex((t) => t.id === draggedTaskId);
+    const dropIndex = currentList.findIndex((t) => t.id === targetTask.id);
+
+    if (dragIndex !== -1 && dropIndex !== -1) {
+      const removed = currentList[dragIndex];
+      if (removed) {
+        currentList.splice(dragIndex, 1);
+        currentList.splice(dropIndex, 0, removed);
+        
+        triggerHaptic('light');
+        useTaskStore.getState().reorderTasks(currentList);
+      }
+    }
+    setDraggedTaskId(null);
+  };
 
   // Активные события на сегодня для компактной плашки в Задачи дня
   const todaysActiveEvents = React.useMemo(() => {
@@ -248,7 +318,7 @@ export function TodayPage() {
         </div>
 
         {/* Панель продуктивности: Утренний фокус, Помодоро-таймер и Вечерняя рефлексия */}
-        <div className="flex items-center gap-2 sm:gap-2.5">
+        <div data-tour="rituals-bar" className="flex items-center gap-2 sm:gap-2.5">
           <button
             type="button"
             onClick={() => setIsMorningRitualOpen(true)}
@@ -500,26 +570,72 @@ export function TodayPage() {
 
         <QuickTaskInput />
 
-        {todaysTasks.length === 0 ? (
+        {activeTodayTasks.length === 0 && completedTodayTasks.length === 0 ? (
           <div className="text-center py-12 bg-white rounded-xl border border-dashed border-slate-200 dark:bg-slate-900 dark:border-slate-700">
             <p className="text-slate-500 dark:text-slate-400">На сегодня больше нет задач. Отличная работа!</p>
           </div>
         ) : (
-          <ul className="space-y-3">
-            {todaysTasks.map((task) => (
-              <li key={task.id}>
-                <TaskItem 
-                  task={task} 
-                  onToggleFocus={useTaskStore.getState().toggleDailyFocus} 
-                  onEdit={(t) => setEditingTask(t)}
-                  onStartFocus={(t) => {
-                    setFocusTask(t);
-                    setIsFocusModalOpen(true);
-                  }}
-                />
-              </li>
-            ))}
-          </ul>
+          <div className="space-y-4">
+            {/* АКТИВНЫЕ ЗАДАЧИ ДНЯ С ПЕРЕТАСКИВАНИЕМ (DRAG & DROP) */}
+            {activeTodayTasks.length > 0 && (
+              <ul className="space-y-3">
+                {activeTodayTasks.map((task) => (
+                  <li key={task.id}>
+                    <TaskItem 
+                      task={task} 
+                      onToggleFocus={useTaskStore.getState().toggleDailyFocus} 
+                      onEdit={(t) => setEditingTask(t)}
+                      onStartFocus={(t) => {
+                        setFocusTask(t);
+                        setIsFocusModalOpen(true);
+                      }}
+                      isDraggable={true}
+                      onDragStart={handleDragStart}
+                      onDragOver={handleDragOver}
+                      onDragLeave={handleDragLeave}
+                      onDrop={handleDrop}
+                      isDragging={draggedTaskId === task.id}
+                      isDragOver={dragOverTaskId === task.id}
+                    />
+                  </li>
+                ))}
+              </ul>
+            )}
+
+            {/* ВЫПОЛНЕННЫЕ ЗАДАЧИ ДНЯ: ПАДАЮТ ВНИЗ ПО ОЧЕРЁДНОСТИ ВЫПОЛНЕНИЯ */}
+            {completedTodayTasks.length > 0 && (
+              <div className="pt-3 mt-4 border-t border-slate-200 dark:border-slate-800 space-y-3">
+                <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 font-semibold px-1">
+                  <div className="flex items-center gap-1.5">
+                    <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                    <span>Выполненные за сегодня ({completedTodayTasks.length})</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowCompletedTodayTasks(!showCompletedTodayTasks)}
+                    className="text-xs text-indigo-500 hover:text-indigo-600 dark:text-indigo-400 font-medium hover:underline flex items-center gap-1"
+                  >
+                    <span>{showCompletedTodayTasks ? 'Свернуть' : 'Развернуть'}</span>
+                    <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", !showCompletedTodayTasks && "-rotate-90")} />
+                  </button>
+                </div>
+
+                {showCompletedTodayTasks && (
+                  <ul className="space-y-3">
+                    {completedTodayTasks.map((task) => (
+                      <li key={task.id}>
+                        <TaskItem 
+                          task={task} 
+                          onToggleFocus={useTaskStore.getState().toggleDailyFocus} 
+                          onEdit={(t) => setEditingTask(t)}
+                        />
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
+          </div>
         )}
       </section>
         </>

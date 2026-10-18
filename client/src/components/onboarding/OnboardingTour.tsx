@@ -27,6 +27,18 @@ function getUserName(): string {
   }
 }
 
+// Поиск видимого элемента (для корректной работы при дублировании mobile/desktop версий)
+function getVisibleTargetElement(selector: string): HTMLElement | null {
+  const elements = document.querySelectorAll<HTMLElement>(selector);
+  for (const el of elements) {
+    const rect = el.getBoundingClientRect();
+    if (rect.width > 0 && rect.height > 0) {
+      return el;
+    }
+  }
+  return elements[0] || null;
+}
+
 function getTourSteps(userName: string): Step[] {
   return [
     {
@@ -36,6 +48,15 @@ function getTourSteps(userName: string): Step[] {
       location: 'Твой персональный центр достижений',
       howItWorks: 'Каждая великая победа начинается с одного ясного решения и ежедневных действий. Твои мечты заслуживают стать реальностью, а не оставаться в мыслях. Мы создали Goal Tracker, чтобы помочь тебе поставить дерзкие цели, разбить их на понятные шаги и действовать каждый день с максимальной отдачей.',
       benefit: 'Фокусируйся на главном, побеждай прокрастинацию и достигай масштабных результатов шаг за шагом. Пройди короткий тур, чтобы узнать все суперспособности приложения!',
+    },
+    {
+      id: 'rituals',
+      targetSelector: '[data-tour="rituals-bar"]',
+      route: '/today',
+      title: 'Утро, Фокус и Вечер 🌅⏱🌙',
+      location: 'Вкладка «Сегодня» (панель под приветствием)',
+      howItWorks: 'Три ключевых инструмента дня: 1) «Утро» — утренний ритуал настройки и выбор главной задачи («Съешь лягушку»); 2) «Фокус» — Помодоро-таймер на 25 минут с атмосферными звуками (дождь, костёр, лес, кафе) и наградой +25 XP; 3) «Вечер» — вечерняя рефлексия, подведение итогов и фиксация побед.',
+      benefit: 'Задавайте правильный настрой с утра, удерживайте лазерную концентрацию без выгорания и завершайте день с чувством выполненного долга.',
     },
     {
       id: 'today',
@@ -174,6 +195,15 @@ export function OnboardingTour() {
     }
   }, [isVisible, currentStepIndex, location.pathname, navigate, steps]);
 
+  // Оповещение страниц об активном шаге онбординга (для автоматического переключения вкладок)
+  React.useEffect(() => {
+    if (!isVisible) return;
+    const step = steps[currentStepIndex];
+    if (step) {
+      window.dispatchEvent(new CustomEvent('tour-step-change', { detail: { stepId: step.id } }));
+    }
+  }, [isVisible, currentStepIndex, steps]);
+
   React.useEffect(() => {
     if (!isVisible) return;
     const updatePosition = () => {
@@ -181,7 +211,7 @@ export function OnboardingTour() {
       if (!step) return; 
 
       const isMobile = window.innerWidth < 640;
-      const targetEl = document.querySelector(step.targetSelector);
+      const targetEl = getVisibleTargetElement(step.targetSelector);
       const tooltipWidth = isMobile ? window.innerWidth - 32 : Math.min(420, window.innerWidth - 32);
 
       // Прокручиваем к элементу, если он не виден на экране и не зафиксирован в навбаре/хедере
@@ -316,7 +346,7 @@ export function OnboardingTour() {
 
   const getTargetCoords = () => {
     if (!currentStep || currentStep.targetSelector === '[data-tour="logo"]') return null;
-    const targetEl = document.querySelector(currentStep.targetSelector);
+    const targetEl = getVisibleTargetElement(currentStep.targetSelector);
     if (!targetEl) return null;
     const rect = targetEl.getBoundingClientRect();
     return {

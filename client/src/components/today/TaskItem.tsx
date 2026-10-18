@@ -3,7 +3,7 @@ import { useTaskStore } from '@/store/useTaskStore';
 import { useGoalStore } from '@/store/useGoalStore';
 import { cn } from '@/utils/cn';
 import { CategoryBadge } from '@/components/common/CategoryBadge';
-import { Star, Check, Trash2, Target, Pencil, Copy, Timer } from 'lucide-react';
+import { Star, Check, Trash2, Target, Pencil, Copy, Timer, GripVertical } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import type { Task } from '@/types/task';
 import { calculateTaskXP } from '@/utils/gamification';
@@ -15,9 +15,30 @@ interface TaskItemProps {
   onEdit?: (task: Task) => void;
   onDuplicate?: (task: Task) => void;
   onStartFocus?: (task: Task) => void;
+  // Drag and drop props
+  isDraggable?: boolean;
+  onDragStart?: (e: React.DragEvent, task: Task) => void;
+  onDragOver?: (e: React.DragEvent, task: Task) => void;
+  onDragLeave?: (e: React.DragEvent, task: Task) => void;
+  onDrop?: (e: React.DragEvent, task: Task) => void;
+  isDragOver?: boolean;
+  isDragging?: boolean;
 }
 
-export function TaskItem({ task, onToggleFocus, onEdit, onDuplicate, onStartFocus }: TaskItemProps) {
+export function TaskItem({ 
+  task, 
+  onToggleFocus, 
+  onEdit, 
+  onDuplicate, 
+  onStartFocus,
+  isDraggable = false,
+  onDragStart,
+  onDragOver,
+  onDragLeave,
+  onDrop,
+  isDragOver = false,
+  isDragging = false,
+}: TaskItemProps) {
   const { toggleComplete, deleteTask, createTask } = useTaskStore();
   const { goals } = useGoalStore();
   const [floatingXP, setFloatingXP] = React.useState<number | null>(null);
@@ -93,14 +114,30 @@ export function TaskItem({ task, onToggleFocus, onEdit, onDuplicate, onStartFocu
 
   return (
     <div
+      draggable={isDraggable && !task.isCompleted}
+      onDragStart={(e) => onDragStart?.(e, task)}
+      onDragOver={(e) => onDragOver?.(e, task)}
+      onDragLeave={(e) => onDragLeave?.(e, task)}
+      onDrop={(e) => onDrop?.(e, task)}
       className={cn(
-        'group flex items-start gap-3 rounded-lg border border-slate-200 bg-white p-4 transition-all hover:shadow-md relative',
-        task.isCompleted && 'opacity-60 bg-slate-50',
-        // <-- ДОБАВЛЕНО: Темная тема для карточки
+        'group flex items-start gap-2.5 sm:gap-3 rounded-lg border border-slate-200 bg-white p-3.5 sm:p-4 transition-all hover:shadow-md relative',
+        task.isCompleted && 'opacity-65 bg-slate-50/80',
         'dark:bg-slate-800 dark:border-slate-700 dark:hover:shadow-none',
-        task.isCompleted && 'dark:bg-slate-800/50 dark:opacity-50'
+        task.isCompleted && 'dark:bg-slate-800/40 dark:opacity-60',
+        isDragging && 'opacity-25 border-dashed border-indigo-400 scale-[0.98]',
+        isDragOver && 'border-t-2 border-t-indigo-500 bg-indigo-50/40 dark:bg-indigo-950/30'
       )}
     >
+      {/* Ручка перетаскивания (Grip) для активных задач */}
+      {isDraggable && !task.isCompleted && (
+        <div 
+          className="shrink-0 -ml-1 text-slate-300 hover:text-slate-600 dark:text-slate-600 dark:hover:text-slate-300 cursor-grab active:cursor-grabbing transition-colors pt-0.5"
+          title="Потяните для изменения порядка"
+        >
+          <GripVertical className="h-4 w-4" />
+        </div>
+      )}
+
       <div className="relative shrink-0 mt-0.5">
         <button
           onClick={handleCheck}

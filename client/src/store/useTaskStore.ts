@@ -14,6 +14,7 @@ import { API_BASE } from '@/config/api';
 
 interface TaskState {
   tasks: Task[];
+  customOrder: Record<string, number>;
   isLoading: boolean;
   error: string | null;
   fetchTasks: () => Promise<void>;
@@ -24,10 +25,12 @@ interface TaskState {
   toggleDailyFocus: (id: string) => Promise<void>;
   getByDate: (date: string) => Task[];
   getDailyFocusByDate: (date: string) => Task[];
+  reorderTasks: (orderedTasks: Task[]) => void;
 }
 
 export const useTaskStore = create<TaskState>((set, get) => ({
   tasks: [],
+  customOrder: {},
   isLoading: false,
   error: null,
 
@@ -46,8 +49,23 @@ export const useTaskStore = create<TaskState>((set, get) => ({
       
       if (!res.ok) throw new Error('Failed to fetch tasks');
       
-      const tasks = await res.json();
-      set({ tasks, isLoading: false });
+      const rawTasks: Task[] = await res.json();
+      let customOrder: Record<string, number> = {};
+      try {
+        const savedOrder = localStorage.getItem(`tasks_order_${userId}`);
+        if (savedOrder) customOrder = JSON.parse(savedOrder);
+      } catch {
+        // ignore
+      }
+
+      const tasks = [...rawTasks].sort((a, b) => {
+        const orderA = customOrder[a.id] ?? 999999;
+        const orderB = customOrder[b.id] ?? 999999;
+        if (orderA !== orderB) return orderA - orderB;
+        return (a.createdAt || '').localeCompare(b.createdAt || '');
+      });
+
+      set({ tasks, customOrder, isLoading: false });
     } catch (err) {
       set({ 
         error: err instanceof Error ? err.message : 'Ошибка загрузки задач', 
@@ -218,5 +236,32 @@ export const useTaskStore = create<TaskState>((set, get) => ({
     return get().tasks.filter(
       (t) => t.dueDate === date && t.isDailyFocus && !t.isCompleted
     );
+  },
+
+  reorderTasks: (orderedTasks) => {
+    const userId = getUserId();
+    const orderMap: Record<string, number> = { ...get().customOrder };
+    
+    orderedTasks.forEach((task, index) => {
+      orderMap[task.id] = index;
+    });
+
+    if (userId) {
+      try {
+        localStorage.setItem(`tasks_order_${userId}`, JSON.stringify(orderMap));
+      } catch (err) {
+        console.error('Failed to save task order:', err);
+      }
+    }
+
+    set((state) => {
+      const sorted = [...state.tasks].sort((a, b) => {
+        const orderA = orderMap[a.id] ?? 999999;
+        const orderB = orderMap[b.id] ?? 999999;
+        if (orderA !== orderB) return orderA - orderB;
+        return (a.createdAt || '').localeCompare(b.createdAt || '');
+      });
+      return { tasks: sorted, customOrder: orderMap };
+    });
   },
 }));

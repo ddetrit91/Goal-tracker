@@ -31,6 +31,20 @@ export function GoalsPage() {
     Promise.all([fetchGoals(), fetchTasks()]);
   }, [fetchGoals, fetchTasks]);
 
+  // Автоматическое переключение на "Календарь" во время обучающего шага онбординга
+  React.useEffect(() => {
+    const handleTourStep = (e: Event) => {
+      const customEvent = e as CustomEvent<{ stepId: string }>;
+      if (customEvent.detail?.stepId === 'calendar') {
+        setViewMode('calendar');
+      } else if (customEvent.detail?.stepId === 'deadlines' || customEvent.detail?.stepId === 'goals') {
+        setViewMode('tree');
+      }
+    };
+    window.addEventListener('tour-step-change', handleTourStep);
+    return () => window.removeEventListener('tour-step-change', handleTourStep);
+  }, []);
+
   const filteredGoals = activeTab === 'all' 
     ? goals.filter(g => g.parentId === null)
     : getByHorizon(activeTab).filter(g => g.parentId === null);
