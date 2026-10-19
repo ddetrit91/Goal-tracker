@@ -83,12 +83,60 @@ export function GoalsCalendar({ onSelectGoal }: GoalsCalendarProps) {
     );
   }, [normalizedQuery]);
 
+  // Вычисляем цели дня (отмеченные звёздочкой) и все их подцели для отображения задач на сегодня
+  const todayIso = toISODateString(new Date());
+
+  const getAllGoalDescendantIds = React.useCallback((goalId: string): string[] => {
+    const children = goals.filter((g) => g.parentId === goalId);
+    return [goalId, ...children.flatMap((c) => getAllGoalDescendantIds(c.id))];
+  }, [goals]);
+
+  const todayGoalHierarchyIds = React.useMemo(() => {
+    const todaysRootGoals = goals.filter((g) => g.isTodayGoal === true && !g.parentId);
+    const ids = new Set<string>();
+    todaysRootGoals.forEach((g) => {
+      getAllGoalDescendantIds(g.id).forEach((id) => ids.add(id));
+    });
+    return ids;
+  }, [goals, getAllGoalDescendantIds]);
+
+  // Определение, была ли задача завершена именно в указанную дату
+  const isTaskCompletedOnDate = React.useCallback((task: any, dateIso: string): boolean => {
+    if (!task.isCompleted) return false;
+    if (task.completedAt) {
+      try {
+        return toISODateString(parseISO(task.completedAt)) === dateIso;
+      } catch {
+        return false;
+      }
+    }
+    if (task.dueDate) return task.dueDate === dateIso;
+    if (task.createdAt) {
+      try {
+        return toISODateString(parseISO(task.createdAt)) === dateIso;
+      } catch {
+        return false;
+      }
+    }
+    return false;
+  }, []);
+
+  // Определение, является ли задача активной для указанной даты
+  const isTaskActiveOnDate = React.useCallback((task: any, dateIso: string): boolean => {
+    if (task.isCompleted) return false;
+    if (task.dueDate === dateIso) return true;
+    if (dateIso === todayIso && task.goalId && todayGoalHierarchyIds.has(task.goalId)) {
+      return true;
+    }
+    return false;
+  }, [todayIso, todayGoalHierarchyIds]);
+
   // Цели и задачи на выбранный день
   const selectedDateStr = toISODateString(selectedDate);
 
   const selectedDayItems = React.useMemo(() => {
     // 1. Цели со сроком (дедлайн) на этот день
-    const deadlineGoals = goals.filter(g => g.targetDate === selectedDateStr && matchesGoal(g));
+    const deadlineGoals = goals.filter(g => g.targetDate === selectedDateStr && g.status !== 'completed' && matchesGoal(g));
     
     // 2. Цели, выполненные в этот день (по completedAt или status === completed)
     const completedGoals = goals.filter(g => 
@@ -97,19 +145,27 @@ export function GoalsCalendar({ onSelectGoal }: GoalsCalendarProps) {
       matchesGoal(g)
     );
 
-    // 3. Запланированные события на этот день
+    // 3. Задачи, выполненные в этот день (любые выполненные задачи с датой завершения на этот день)
+    const completedTasks = tasks.filter(t => 
+      isTaskCompletedOnDate(t, selectedDateStr) && matchesTask(t)
+    );
+
+    // 4. Запланированные события на этот день
     const dayEvents = events.filter(e => e.eventDate === selectedDateStr);
 
-    // 4. Задачи, назначенные на этот день
-    const dayTasks = tasks.filter(t => t.dueDate === selectedDateStr && matchesTask(t));
+    // 5. Активные задачи на этот день
+    const activeTasks = tasks.filter(t => 
+      isTaskActiveOnDate(t, selectedDateStr) && matchesTask(t)
+    );
 
     return {
       deadlineGoals,
       completedGoals,
+      completedTasks,
       dayEvents,
-      dayTasks,
+      activeTasks,
     };
-  }, [goals, tasks, events, selectedDateStr, matchesGoal, matchesTask]);
+  }, [goals, tasks, events, selectedDateStr, isTaskCompletedOnDate, isTaskActiveOnDate, matchesGoal, matchesTask]);
 
   // Результаты поиска по всем датам для быстрых переходов
   const searchResults = React.useMemo(() => {
@@ -132,8 +188,17 @@ export function GoalsCalendar({ onSelectGoal }: GoalsCalendarProps) {
     });
 
     tasks.forEach(t => {
-      if (t.dueDate && matchesTask(t)) {
-        results.push({ id: `task-${t.id}`, title: t.title, date: t.dueDate, type: 'task' });
+      if (matchesTask(t)) {
+        if (t.isCompleted && t.completedAt) {
+          try {
+            const compDate = toISODateString(parseISO(t.completedAt));
+            results.push({ id: `task-comp-${t.id}`, title: `${t.title} (выполнено)`, date: compDate, type: 'completed' });
+          } catch {
+            // ignore
+          }
+        } else if (t.dueDate) {
+          results.push({ id: `task-${t.id}`, title: t.title, date: t.dueDate, type: 'task' });
+        }
       }
     });
 
@@ -315,26 +380,32 @@ export function GoalsCalendar({ onSelectGoal }: GoalsCalendarProps) {
             // Цели со сроком в этот день
             const dayDeadlines = goals.filter(g => g.targetDate === dayIso && g.status !== 'completed' && matchesGoal(g));
             // Выполненные цели в этот день
-            const dayCompleted = goals.filter(g => 
+            const dayCompletedGoals = goals.filter(g => 
               ((g.completedAt && toISODateString(parseISO(g.completedAt)) === dayIso) ||
               (g.status === 'completed' && g.targetDate === dayIso)) &&
               matchesGoal(g)
             );
-            // Задачи в этот день
-            const dayTasksCount = tasks.filter(t => t.dueDate === dayIso && matchesTask(t)).length;
+            // Выполненные задачи в этот день
+            const dayCompletedTasks = tasks.filter(t => isTaskCompletedOnDate(t, dayIso) && matchesTask(t));
+            const dayCompletedCount = dayCompletedGoals.length + dayCompletedTasks.length;
+
+            // Активные задачи в этот день
+            const dayActiveTasks = tasks.filter(t => isTaskActiveOnDate(t, dayIso) && matchesTask(t));
+            const dayActiveTasksCount = dayActiveTasks.length;
+
             // События в этот день
             const dayEvents = events.filter(e => e.eventDate === dayIso);
             const dayEventsCount = dayEvents.length;
 
-            const isSearchMatch = Boolean(normalizedQuery && (dayDeadlines.length > 0 || dayCompleted.length > 0 || dayTasksCount > 0 || dayEventsCount > 0));
+            const isSearchMatch = Boolean(normalizedQuery && (dayDeadlines.length > 0 || dayCompletedCount > 0 || dayActiveTasksCount > 0 || dayEventsCount > 0));
 
             const showDeadlines = filterType === 'all' || filterType === 'deadlines';
             const showCompleted = filterType === 'all' || filterType === 'completed';
 
             const hasItems = (showDeadlines && dayDeadlines.length > 0) || 
-                             (showCompleted && dayCompleted.length > 0) || 
+                             (showCompleted && dayCompletedCount > 0) || 
                              dayEventsCount > 0 ||
-                             dayTasksCount > 0;
+                             dayActiveTasksCount > 0;
 
             return (
               <div
@@ -366,13 +437,16 @@ export function GoalsCalendar({ onSelectGoal }: GoalsCalendarProps) {
                     {format(day, 'd')}
                   </span>
 
-                  {/* Кружочки событий и задач на десктопе */}
+                  {/* Кружочки событий, задач и выполненного на десктопе */}
                   <div className="hidden sm:flex items-center gap-1">
                     {dayEventsCount > 0 && (
                       <span className="h-2 w-2 rounded-full bg-amber-500 ring-1 ring-amber-300 shadow-sm" title={`${dayEventsCount} событий / встреч`} />
                     )}
-                    {dayTasksCount > 0 && (
-                      <span className="h-2 w-2 rounded-full bg-purple-500 ring-1 ring-purple-300 shadow-sm" title={`${dayTasksCount} задач`} />
+                    {dayActiveTasksCount > 0 && (
+                      <span className="h-2 w-2 rounded-full bg-purple-500 ring-1 ring-purple-300 shadow-sm" title={`${dayActiveTasksCount} активных задач`} />
+                    )}
+                    {dayCompletedCount > 0 && (
+                      <span className="h-2 w-2 rounded-full bg-emerald-500 ring-1 ring-emerald-300 shadow-sm" title={`${dayCompletedCount} выполнено (${dayCompletedGoals.length} целей, ${dayCompletedTasks.length} задач)`} />
                     )}
                   </div>
                 </div>
@@ -404,21 +478,33 @@ export function GoalsCalendar({ onSelectGoal }: GoalsCalendarProps) {
                   ))}
 
                   {/* Достигнутые цели */}
-                  {showCompleted && dayCompleted.slice(0, 2).map((g) => (
+                  {showCompleted && dayCompletedGoals.slice(0, 2).map((g) => (
                     <div
                       key={g.id}
                       className="text-[10px] font-medium px-1.5 py-0.5 rounded truncate bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-200 border border-emerald-200/50 dark:border-emerald-800 flex items-center gap-1"
-                      title={`Выполнена: ${g.title}`}
+                      title={`Цель выполнена: ${g.title}`}
                     >
                       <Check className="h-2.5 w-2.5 shrink-0 text-emerald-600" />
                       <span className="truncate">{g.title}</span>
                     </div>
                   ))}
 
+                  {/* Выполненные задачи (если нет выполненных целей или осталось место) */}
+                  {showCompleted && dayCompletedGoals.length < 2 && dayCompletedTasks.slice(0, 2 - dayCompletedGoals.length).map((t) => (
+                    <div
+                      key={t.id}
+                      className="text-[10px] font-medium px-1.5 py-0.5 rounded truncate bg-emerald-50 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300 border border-emerald-200/60 dark:border-emerald-800/60 flex items-center gap-1"
+                      title={`Задача выполнена: ${t.title}`}
+                    >
+                      <Check className="h-2.5 w-2.5 shrink-0 text-emerald-600" />
+                      <span className="truncate">{t.title}</span>
+                    </div>
+                  ))}
+
                   {/* Если больше 2 элементов */}
-                  {(dayEventsCount + (showDeadlines ? dayDeadlines.length : 0) + (showCompleted ? dayCompleted.length : 0)) > 2 && (
+                  {(dayEventsCount + (showDeadlines ? dayDeadlines.length : 0) + (showCompleted ? dayCompletedCount : 0)) > 2 && (
                     <div className="text-[9px] text-slate-400 dark:text-slate-500 font-medium pl-1">
-                      +ещё {(dayEventsCount + (showDeadlines ? dayDeadlines.length : 0) + (showCompleted ? dayCompleted.length : 0)) - 2}
+                      +ещё {(dayEventsCount + (showDeadlines ? dayDeadlines.length : 0) + (showCompleted ? dayCompletedCount : 0)) - 2}
                     </div>
                   )}
                 </div>
@@ -428,15 +514,15 @@ export function GoalsCalendar({ onSelectGoal }: GoalsCalendarProps) {
                   {dayEventsCount > 0 && (
                     <span className="h-2 w-2 rounded-full bg-amber-500 ring-1 ring-amber-300 shadow-sm" title={`${dayEventsCount} событий`} />
                   )}
-                  {dayTasksCount > 0 && (
-                    <span className="h-2 w-2 rounded-full bg-purple-500 ring-1 ring-purple-300 shadow-sm" title={`${dayTasksCount} задач`} />
+                  {dayActiveTasksCount > 0 && (
+                    <span className="h-2 w-2 rounded-full bg-purple-500 ring-1 ring-purple-300 shadow-sm" title={`${dayActiveTasksCount} активных задач`} />
                   )}
                   {showDeadlines && dayDeadlines.slice(0, 1).map((g) => (
                     <span key={g.id} className="h-1.5 w-1.5 rounded-full bg-indigo-500" title={`Срок: ${g.title}`} />
                   ))}
-                  {showCompleted && dayCompleted.slice(0, 1).map((g) => (
-                    <span key={g.id} className="h-1.5 w-1.5 rounded-full bg-emerald-500" title={`Выполнена: ${g.title}`} />
-                  ))}
+                  {showCompleted && dayCompletedCount > 0 && (
+                    <span className="h-2 w-2 rounded-full bg-emerald-500 ring-1 ring-emerald-300 shadow-sm" title={`${dayCompletedCount} выполнено`} />
+                  )}
                 </div>
 
                 {/* Маркер наличия задач */}
@@ -459,15 +545,15 @@ export function GoalsCalendar({ onSelectGoal }: GoalsCalendarProps) {
             </div>
             <div className="flex items-center gap-1.5">
               <span className="h-2.5 w-2.5 rounded-full bg-purple-500 ring-1 ring-purple-300" />
-              <span>Фиолетовый: Задачи</span>
+              <span>Фиолетовый: Активные задачи</span>
             </div>
             <div className="flex items-center gap-1.5">
               <span className="h-2.5 w-2.5 rounded-full bg-indigo-500" />
               <span>Синий: Сроки целей</span>
             </div>
             <div className="flex items-center gap-1.5">
-              <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
-              <span>Зеленый: Достигнутые цели</span>
+              <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 ring-1 ring-emerald-300" />
+              <span>Зеленый: Выполненные цели и задачи</span>
             </div>
           </div>
         </div>
@@ -491,8 +577,9 @@ export function GoalsCalendar({ onSelectGoal }: GoalsCalendarProps) {
 
         {selectedDayItems.deadlineGoals.length === 0 && 
          selectedDayItems.completedGoals.length === 0 && 
+         selectedDayItems.completedTasks.length === 0 &&
          selectedDayItems.dayEvents.length === 0 &&
-         selectedDayItems.dayTasks.length === 0 ? (
+         selectedDayItems.activeTasks.length === 0 ? (
           <div className="text-center py-6 text-slate-400 dark:text-slate-500 text-sm">
             <p>На этот день нет запланированных событий, сроков выполнения и задач.</p>
           </div>
@@ -532,14 +619,15 @@ export function GoalsCalendar({ onSelectGoal }: GoalsCalendarProps) {
               </div>
             )}
 
-            {/* 2. Достигнутые цели в этот день (ретроспектива) */}
-            {selectedDayItems.completedGoals.length > 0 && (
+            {/* 2. Достигнутые цели и выполненные задачи в этот день */}
+            {(selectedDayItems.completedGoals.length > 0 || selectedDayItems.completedTasks.length > 0) && (
               <div className="space-y-2">
                 <h4 className="text-xs font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
                   <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
-                  Выполненные цели ({selectedDayItems.completedGoals.length})
+                  Выполнено в этот день ({selectedDayItems.completedGoals.length + selectedDayItems.completedTasks.length})
                 </h4>
                 <div className="space-y-2">
+                  {/* Выполненные цели */}
                   {selectedDayItems.completedGoals.map((g) => (
                     <div
                       key={g.id}
@@ -554,15 +642,45 @@ export function GoalsCalendar({ onSelectGoal }: GoalsCalendarProps) {
                         </span>
                       </div>
                       <p className="text-[11px] text-emerald-700/80 dark:text-emerald-400/80 mt-1 pl-7">
-                        Успешно достигнута! 🏆
+                        Цель успешно достигнута! 🏆
                       </p>
                     </div>
                   ))}
+
+                  {/* Выполненные задачи */}
+                  {selectedDayItems.completedTasks.map((t) => {
+                    const parentGoal = t.goalId ? goals.find((g) => g.id === t.goalId) : null;
+                    return (
+                      <div
+                        key={t.id}
+                        className="p-2.5 rounded-lg border border-emerald-200/80 bg-emerald-50/40 dark:bg-emerald-950/20 dark:border-emerald-800/50 flex items-center justify-between gap-2"
+                      >
+                        <div className="flex items-center gap-2 min-w-0">
+                          <div className="h-4 w-4 rounded-full bg-emerald-500 text-white flex items-center justify-center shrink-0">
+                            <Check className="h-3 w-3" />
+                          </div>
+                          <div className="truncate">
+                            <span className="text-sm font-medium text-emerald-950 dark:text-emerald-200 line-through truncate block">
+                              {t.title}
+                            </span>
+                            {parentGoal && (
+                              <span className="text-[10px] text-emerald-700/80 dark:text-emerald-400/70 truncate block">
+                                Внутри цели: {parentGoal.title}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300 shrink-0">
+                          Выполнено ✓
+                        </span>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             )}
 
-            {/* 2.5 События дня */}
+            {/* 3. События дня */}
             {selectedDayItems.dayEvents.length > 0 && (
               <div className="space-y-2 md:col-span-2">
                 <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
@@ -595,33 +713,43 @@ export function GoalsCalendar({ onSelectGoal }: GoalsCalendarProps) {
               </div>
             )}
 
-            {/* 3. Задачи дня */}
-            {selectedDayItems.dayTasks.length > 0 && (
+            {/* 4. Активные задачи на этот день */}
+            {selectedDayItems.activeTasks.length > 0 && (
               <div className="space-y-2 md:col-span-2">
                 <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
-                  <ListFilter className="h-3.5 w-3.5 text-blue-500" />
-                  Задачи на этот день ({selectedDayItems.dayTasks.length})
+                  <ListFilter className="h-3.5 w-3.5 text-purple-500" />
+                  Активные задачи на этот день ({selectedDayItems.activeTasks.length})
                 </h4>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  {selectedDayItems.dayTasks.map((t) => (
-                    <div
-                      key={t.id}
-                      className={cn(
-                        "p-2.5 rounded-lg border text-sm flex items-center gap-2.5",
-                        t.isCompleted 
-                          ? "bg-slate-50 border-slate-200 text-slate-400 line-through dark:bg-slate-800/40 dark:border-slate-700 dark:text-slate-500"
-                          : "bg-white border-slate-200 text-slate-800 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-200"
-                      )}
-                    >
-                      <div className={cn(
-                        "h-4 w-4 rounded-full border flex items-center justify-center shrink-0",
-                        t.isCompleted ? "border-emerald-500 bg-emerald-500 text-white" : "border-slate-300 dark:border-slate-600"
-                      )}>
-                        {t.isCompleted && <Check className="h-3 w-3" />}
+                  {selectedDayItems.activeTasks.map((t) => {
+                    const parentGoal = t.goalId ? goals.find((g) => g.id === t.goalId) : null;
+                    return (
+                      <div
+                        key={t.id}
+                        className="p-2.5 rounded-lg border border-slate-200 bg-white text-slate-800 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-200 text-sm flex items-center justify-between gap-2.5 shadow-sm"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2 truncate">
+                            <div className="h-4 w-4 rounded-full border border-slate-300 dark:border-slate-600 flex items-center justify-center shrink-0" />
+                            <span className="truncate font-medium">{t.title}</span>
+                          </div>
+                          {parentGoal && (
+                            <span className="text-[10px] text-slate-400 dark:text-slate-500 pl-6 truncate block">
+                              Цель: {parentGoal.title}
+                            </span>
+                          )}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => useTaskStore.getState().toggleComplete(t.id)}
+                          className="text-xs px-2.5 py-1 rounded bg-indigo-50 hover:bg-indigo-100 text-indigo-600 dark:bg-indigo-900/30 dark:hover:bg-indigo-900/50 dark:text-indigo-300 font-semibold transition-colors shrink-0"
+                          title="Отметить выполненной"
+                        >
+                          Завершить
+                        </button>
                       </div>
-                      <span className="truncate">{t.title}</span>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             )}

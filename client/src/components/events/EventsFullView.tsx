@@ -151,14 +151,14 @@ export function EventsFullView() {
         </div>
       </div>
 
-      {/* Панель управления: Вкладки + Кнопка добавления */}
+      {/* Панель управления: Вкладки (ровно 50/50 на мобильных) + Кнопка добавления события */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div className="flex items-center bg-slate-100 dark:bg-slate-800 p-1 rounded-xl border border-slate-200 dark:border-slate-700 text-xs">
+        <div className="grid grid-cols-2 sm:flex sm:items-center bg-slate-100 dark:bg-slate-800 p-1 rounded-xl border border-slate-200 dark:border-slate-700 text-xs w-full sm:w-auto">
           <button
             type="button"
             onClick={() => setTab('upcoming')}
             className={cn(
-              "px-4 py-1.5 rounded-lg font-bold transition-all",
+              "py-2 sm:py-1.5 px-2 sm:px-4 rounded-lg font-bold transition-all text-center truncate",
               tab === 'upcoming'
                 ? "bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-300 shadow-sm"
                 : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
@@ -170,7 +170,7 @@ export function EventsFullView() {
             type="button"
             onClick={() => setTab('completed')}
             className={cn(
-              "px-4 py-1.5 rounded-lg font-bold transition-all",
+              "py-2 sm:py-1.5 px-2 sm:px-4 rounded-lg font-bold transition-all text-center truncate",
               tab === 'completed'
                 ? "bg-white dark:bg-slate-700 text-emerald-600 dark:text-emerald-300 shadow-sm"
                 : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
@@ -186,10 +186,10 @@ export function EventsFullView() {
             setEditingEvent(null);
             setIsModalOpen(true);
           }}
-          className="flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs sm:text-sm shadow-md shadow-indigo-500/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
+          className="flex items-center justify-center gap-2 px-4 py-2.5 sm:py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs sm:text-sm shadow-md shadow-indigo-500/20 transition-all hover:scale-[1.02] active:scale-[0.98] w-full sm:w-auto"
         >
-          <Plus className="h-4 w-4" />
-          <span>+ Новое событие</span>
+          <Plus className="h-4 w-4 shrink-0" />
+          <span>Новое событие</span>
         </button>
       </div>
 

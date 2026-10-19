@@ -11,7 +11,6 @@ import { cn } from '@/utils/cn';
 import { parseISO, differenceInDays, format } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { toISODateString } from '@/utils/date';
-import { triggerHaptic } from '@/utils/soundEffects';
 import type { Goal } from '@/types/goal';
 import type { Task } from '@/types/task';
 
@@ -33,8 +32,6 @@ export function GoalCard({ goal, level = 0, onAddSubgoal, onEditGoal, onDeleteGo
   const [isSubmittingTask, setIsSubmittingTask] = React.useState(false);
   const [editingTask, setEditingTask] = React.useState<Task | null>(null);
   const [showCompletedTasks, setShowCompletedTasks] = React.useState(true);
-  const [draggedTaskId, setDraggedTaskId] = React.useState<string | null>(null);
-  const [dragOverTaskId, setDragOverTaskId] = React.useState<string | null>(null);
 
   const { goals, getChildren, toggleTodayGoal, duplicateGoal } = useGoalStore();
   const { tasks: allStoreTasks, createTask, toggleDailyFocus } = useTaskStore();
@@ -93,49 +90,6 @@ export function GoalCard({ goal, level = 0, onAddSubgoal, onEditGoal, onDeleteGo
 
     return { activeTasks: active, completedTasks: completed };
   }, [relevantTasks]);
-
-  // Drag & drop обработчики для перемещения активных задач
-  const handleDragStart = (e: React.DragEvent, task: Task) => {
-    setDraggedTaskId(task.id);
-    e.dataTransfer.setData('text/plain', task.id);
-    e.dataTransfer.effectAllowed = 'move';
-  };
-
-  const handleDragOver = (e: React.DragEvent, task: Task) => {
-    e.preventDefault();
-    if (draggedTaskId && draggedTaskId !== task.id) {
-      setDragOverTaskId(task.id);
-      e.dataTransfer.dropEffect = 'move';
-    }
-  };
-
-  const handleDragLeave = (_e: React.DragEvent, task: Task) => {
-    if (dragOverTaskId === task.id) {
-      setDragOverTaskId(null);
-    }
-  };
-
-  const handleDrop = (e: React.DragEvent, targetTask: Task) => {
-    e.preventDefault();
-    setDragOverTaskId(null);
-    if (!draggedTaskId || draggedTaskId === targetTask.id) return;
-
-    const currentList = [...activeTasks];
-    const dragIndex = currentList.findIndex((t) => t.id === draggedTaskId);
-    const dropIndex = currentList.findIndex((t) => t.id === targetTask.id);
-
-    if (dragIndex !== -1 && dropIndex !== -1) {
-      const removed = currentList[dragIndex];
-      if (removed) {
-        currentList.splice(dragIndex, 1);
-        currentList.splice(dropIndex, 0, removed);
-        
-        triggerHaptic('light');
-        useTaskStore.getState().reorderTasks(currentList);
-      }
-    }
-    setDraggedTaskId(null);
-  };
   
   const childGoals = getChildren(goal.id);
   const hasChildren = childGoals.length > 0 || relevantTasks.length > 0 || isAddingTask;
@@ -379,20 +333,13 @@ export function GoalCard({ goal, level = 0, onAddSubgoal, onEditGoal, onDeleteGo
               />
             ))}
             
-            {/* АКТИВНЫЕ ЗАДАЧИ (СВЕРХУ) С ВОЗМОЖНОСТЬЮ ПЕРЕТАСКИВАНИЯ (DRAG & DROP) */}
+            {/* АКТИВНЫЕ ЗАДАЧИ (СВЕРХУ) */}
             {activeTasks.map((task) => (
               <div key={task.id} className="pl-2">
                 <TaskItem 
                   task={task} 
                   onToggleFocus={toggleDailyFocus} 
                   onEdit={(t) => setEditingTask(t)}
-                  isDraggable={true}
-                  onDragStart={handleDragStart}
-                  onDragOver={handleDragOver}
-                  onDragLeave={handleDragLeave}
-                  onDrop={handleDrop}
-                  isDragging={draggedTaskId === task.id}
-                  isDragOver={dragOverTaskId === task.id}
                 /> 
               </div>
             ))}

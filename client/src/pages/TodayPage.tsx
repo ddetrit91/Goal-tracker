@@ -35,8 +35,6 @@ export function TodayPage() {
   const [isFocusModalOpen, setIsFocusModalOpen] = React.useState(false);
   const [focusTask, setFocusTask] = React.useState<Task | null>(null);
   const [showCompletedTodayTasks, setShowCompletedTodayTasks] = React.useState(true);
-  const [draggedTaskId, setDraggedTaskId] = React.useState<string | null>(null);
-  const [dragOverTaskId, setDragOverTaskId] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     Promise.all([fetchTasks(), fetchGoals()]);
@@ -131,48 +129,6 @@ export function TodayPage() {
     return { activeTodayTasks: active, completedTodayTasks: completed };
   }, [todaysTasks]);
 
-  // Drag & drop перемещение для активных задач дня
-  const handleDragStart = (e: React.DragEvent, task: Task) => {
-    setDraggedTaskId(task.id);
-    e.dataTransfer.setData('text/plain', task.id);
-    e.dataTransfer.effectAllowed = 'move';
-  };
-
-  const handleDragOver = (e: React.DragEvent, task: Task) => {
-    e.preventDefault();
-    if (draggedTaskId && draggedTaskId !== task.id) {
-      setDragOverTaskId(task.id);
-      e.dataTransfer.dropEffect = 'move';
-    }
-  };
-
-  const handleDragLeave = (_e: React.DragEvent, task: Task) => {
-    if (dragOverTaskId === task.id) {
-      setDragOverTaskId(null);
-    }
-  };
-
-  const handleDrop = (e: React.DragEvent, targetTask: Task) => {
-    e.preventDefault();
-    setDragOverTaskId(null);
-    if (!draggedTaskId || draggedTaskId === targetTask.id) return;
-
-    const currentList = [...activeTodayTasks];
-    const dragIndex = currentList.findIndex((t) => t.id === draggedTaskId);
-    const dropIndex = currentList.findIndex((t) => t.id === targetTask.id);
-
-    if (dragIndex !== -1 && dropIndex !== -1) {
-      const removed = currentList[dragIndex];
-      if (removed) {
-        currentList.splice(dragIndex, 1);
-        currentList.splice(dropIndex, 0, removed);
-        
-        triggerHaptic('light');
-        useTaskStore.getState().reorderTasks(currentList);
-      }
-    }
-    setDraggedTaskId(null);
-  };
 
   // Активные события на сегодня для компактной плашки в Задачи дня
   const todaysActiveEvents = React.useMemo(() => {
@@ -576,7 +532,7 @@ export function TodayPage() {
           </div>
         ) : (
           <div className="space-y-4">
-            {/* АКТИВНЫЕ ЗАДАЧИ ДНЯ С ПЕРЕТАСКИВАНИЕМ (DRAG & DROP) */}
+            {/* АКТИВНЫЕ ЗАДАЧИ ДНЯ */}
             {activeTodayTasks.length > 0 && (
               <ul className="space-y-3">
                 {activeTodayTasks.map((task) => (
@@ -589,13 +545,6 @@ export function TodayPage() {
                         setFocusTask(t);
                         setIsFocusModalOpen(true);
                       }}
-                      isDraggable={true}
-                      onDragStart={handleDragStart}
-                      onDragOver={handleDragOver}
-                      onDragLeave={handleDragLeave}
-                      onDrop={handleDrop}
-                      isDragging={draggedTaskId === task.id}
-                      isDragOver={dragOverTaskId === task.id}
                     />
                   </li>
                 ))}

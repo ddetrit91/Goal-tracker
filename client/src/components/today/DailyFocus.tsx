@@ -7,8 +7,6 @@ import { Star, AlertCircle, CheckCircle } from 'lucide-react';
 import { cn } from '@/utils/cn';
 import type { Task } from '@/types/task';
 
-import { triggerHaptic } from '@/utils/soundEffects';
-
 interface DailyFocusProps {
   onStartFocus?: (task: Task) => void;
 }
@@ -17,8 +15,6 @@ export function DailyFocus({ onStartFocus }: DailyFocusProps = {}) {
   const { tasks, toggleDailyFocus } = useTaskStore();
   const { goals } = useGoalStore();
   const [editingTask, setEditingTask] = React.useState<Task | null>(null);
-  const [draggedTaskId, setDraggedTaskId] = React.useState<string | null>(null);
-  const [dragOverTaskId, setDragOverTaskId] = React.useState<string | null>(null);
   
   // Получаем фокус-задачи: активные сверху, выполненные падают вниз
   const { activeFocusTasks, completedFocusTasksList } = React.useMemo(() => {
@@ -34,49 +30,6 @@ export function DailyFocus({ onStartFocus }: DailyFocusProps = {}) {
 
     return { activeFocusTasks: active, completedFocusTasksList: completed };
   }, [tasks]);
-
-  // Drag & drop обработчики
-  const handleDragStart = (e: React.DragEvent, task: Task) => {
-    setDraggedTaskId(task.id);
-    e.dataTransfer.setData('text/plain', task.id);
-    e.dataTransfer.effectAllowed = 'move';
-  };
-
-  const handleDragOver = (e: React.DragEvent, task: Task) => {
-    e.preventDefault();
-    if (draggedTaskId && draggedTaskId !== task.id) {
-      setDragOverTaskId(task.id);
-      e.dataTransfer.dropEffect = 'move';
-    }
-  };
-
-  const handleDragLeave = (_e: React.DragEvent, task: Task) => {
-    if (dragOverTaskId === task.id) {
-      setDragOverTaskId(null);
-    }
-  };
-
-  const handleDrop = (e: React.DragEvent, targetTask: Task) => {
-    e.preventDefault();
-    setDragOverTaskId(null);
-    if (!draggedTaskId || draggedTaskId === targetTask.id) return;
-
-    const currentList = [...activeFocusTasks];
-    const dragIndex = currentList.findIndex((t) => t.id === draggedTaskId);
-    const dropIndex = currentList.findIndex((t) => t.id === targetTask.id);
-
-    if (dragIndex !== -1 && dropIndex !== -1) {
-      const removed = currentList[dragIndex];
-      if (removed) {
-        currentList.splice(dragIndex, 1);
-        currentList.splice(dropIndex, 0, removed);
-        
-        triggerHaptic('light');
-        useTaskStore.getState().reorderTasks(currentList);
-      }
-    }
-    setDraggedTaskId(null);
-  };
 
   // Получаем цели, выбранные как "Цель дня" (Фокус дня)
   const todayGoals = goals.filter(g => g.isTodayGoal && !g.parentId);
@@ -125,7 +78,7 @@ export function DailyFocus({ onStartFocus }: DailyFocusProps = {}) {
         </p>
       ) : (
         <ul className="space-y-2">
-          {/* Активные фокус-задачи (с перетаскиванием) */}
+          {/* Активные фокус-задачи */}
           {activeFocusTasks.map(task => (
             <li key={task.id}>
               <TaskItem 
@@ -133,13 +86,6 @@ export function DailyFocus({ onStartFocus }: DailyFocusProps = {}) {
                 onToggleFocus={toggleDailyFocus} 
                 onEdit={(t) => setEditingTask(t)}
                 onStartFocus={onStartFocus}
-                isDraggable={true}
-                onDragStart={handleDragStart}
-                onDragOver={handleDragOver}
-                onDragLeave={handleDragLeave}
-                onDrop={handleDrop}
-                isDragging={draggedTaskId === task.id}
-                isDragOver={dragOverTaskId === task.id}
               />
             </li>
           ))}

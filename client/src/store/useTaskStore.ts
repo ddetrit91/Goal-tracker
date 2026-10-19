@@ -25,7 +25,6 @@ interface TaskState {
   toggleDailyFocus: (id: string) => Promise<void>;
   getByDate: (date: string) => Task[];
   getDailyFocusByDate: (date: string) => Task[];
-  reorderTasks: (orderedTasks: Task[]) => void;
 }
 
 export const useTaskStore = create<TaskState>((set, get) => ({
@@ -236,32 +235,5 @@ export const useTaskStore = create<TaskState>((set, get) => ({
     return get().tasks.filter(
       (t) => t.dueDate === date && t.isDailyFocus && !t.isCompleted
     );
-  },
-
-  reorderTasks: (orderedTasks) => {
-    const userId = getUserId();
-    const orderMap: Record<string, number> = { ...get().customOrder };
-    
-    orderedTasks.forEach((task, index) => {
-      orderMap[task.id] = index;
-    });
-
-    if (userId) {
-      try {
-        localStorage.setItem(`tasks_order_${userId}`, JSON.stringify(orderMap));
-      } catch (err) {
-        console.error('Failed to save task order:', err);
-      }
-    }
-
-    set((state) => {
-      const sorted = [...state.tasks].sort((a, b) => {
-        const orderA = orderMap[a.id] ?? 999999;
-        const orderB = orderMap[b.id] ?? 999999;
-        if (orderA !== orderB) return orderA - orderB;
-        return (a.createdAt || '').localeCompare(b.createdAt || '');
-      });
-      return { tasks: sorted, customOrder: orderMap };
-    });
   },
 }));
